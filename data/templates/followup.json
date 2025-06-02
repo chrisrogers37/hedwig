@@ -1,0 +1,42 @@
+{
+  "template_type": "Follow Up",
+  "template_sections": {
+    "email_subject": "Following Up on Our Recent Conversation",
+    "greeting": "Hi!",
+    "background": "Thank you for taking the time to speak with me recently. I wanted to follow up regarding our discussion and see if you had any further questions or thoughts.",
+    "discussion_notes": {
+      "title": "Discussion Notes",
+      "content": "[discussion_notes]"
+    },
+    "pain_points": {
+      "title": "Pain Points Discussed",
+      "content": "[pain_points]"
+    },
+    "next_steps": {
+      "title": "Agreed Next Steps",
+      "content": "[next_steps]"
+    },
+    "scheduling": {
+      "title": "Scheduling",
+      "bullets": [
+        "Let me know if you'd like to schedule another call or need more information.",
+        "I'm happy to provide additional resources or connect you with our team."
+      ]
+    },
+    "sign_off": {
+      "closing": "Best regards,",
+      "signature": "[your_name] ([company_name])"
+    }
+  },
+  "variables": [
+    "your_name",
+    "company_name",
+    "discussion_notes",
+    "pain_points",
+    "next_steps"
+  ],
+  "meta": {
+    "last_updated": "2024-05-10",
+    "version": "1.0"
+  }
+} 
