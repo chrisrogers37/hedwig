@@ -90,3 +90,18 @@ Generate personalized sales outreach and follow-up emails for any industry or au
 
 ## License
 MIT 
+
+## Roadmap
+
+- **Guide on Getting Your Own OpenAI Token**
+  - Add a front-end guide or link to help users obtain and use their own OpenAI API key.
+- **Follow Up Email Development**
+  - Continue improving and testing the Follow Up template and workflow.
+- **Export Form Data as JSON**
+  - Allow users to export the main fields of their completed form as a JSON file for reuse or record-keeping.
+- **Import/Upload JSON for Reuse**
+  - Enable users to upload a JSON file to pre-fill the form, making it easy to reuse personal or company information.
+- **Paste Full Email as Context**
+  - Add a feature to let users paste an existing email to use as additional context for the LLM (for formatting or content inspiration).
+- **Export Email with Rich Formatting for Gmail**
+  - Provide an option to export the generated email with HTML or rich formatting for direct use in Gmail or other email clients (if possible). 
