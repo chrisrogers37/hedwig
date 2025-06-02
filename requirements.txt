@@ -6,4 +6,6 @@ black==24.2.0
 flake8==7.0.0
 pydantic==2.6.3
 python-dateutil==2.8.2
-pyperclip==1.9.0 
+pyperclip==1.9.0
+typing-extensions>=4.8.0
+pydantic-core==2.16.3 
