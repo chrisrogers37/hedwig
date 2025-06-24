@@ -1,107 +1,152 @@
-# OutboundOwl
+# 🦉 OutboundOwl - AI Email Assistant
 
-```
-   ,_,
-  (O,O)   OutboundOwl
-  (   )   Smart, AI-powered outreach & follow-up
-   " "
-```
+## Overview
 
-Generate personalized sales outreach and follow-up emails for any industry or audience using AI and customizable templates.
+OutboundOwl features a **conversational chatbot interface** that makes creating personalized sales emails as easy as having a conversation. No more filling out forms - just chat naturally with the AI!
 
-## Features
+## 🚀 Quick Start
 
-- **Streamlit Web App**: User-friendly interface for generating professional emails.
-- **Template System**: Modular, JSON-based templates for different email types (e.g., Outreach, Follow Up).
-- **Dynamic Forms**: The form adapts to the selected template, showing only relevant fields.
-- **Key Selling Points**: Add, remove, and customize value propositions for each outreach.
-- **Call to Action**: For outreach emails, specify a custom call to action.
-- **Follow Up Support**: (Beta) Follow Up template supports discussion notes, pain points, and next steps.
-- **Preview Pane**: Instantly preview the assembled email template with example data.
-- **OpenAI Integration**: Uses GPT-4 to generate high-quality, context-aware emails.
-- **Extensible**: Add new templates by dropping JSON files into `data/templates/`.
-
-## How It Works
-
-1. **Select a Template**: Choose "Outreach" (default) or "Follow Up". More templates can be added.
-2. **Fill Out the Form**: The form adapts to your template selection:
-   - **Outreach**: Enter your info, recipient info, value propositions, and a call to action.
-   - **Follow Up**: Enter your info, recipient info, discussion notes, pain points, and next steps.
-   - **Both**: Add any additional context.
-3. **Preview**: See a live preview of the email structure in the sidebar.
-4. **Generate Email**: Click to generate a personalized email using OpenAI's GPT-4.
-5. **Copy & Use**: Copy the generated email for your outreach or follow-up needs.
-
-## Project Structure
-
-```
-/ (project root)
-├── data/templates/         # JSON templates for each email type
-│   ├── outreach.json
-│   └── followup.json
-├── src/
-│   ├── app.py              # Streamlit app
-│   └── utils/
-│       ├── template_manager.py
-│       └── email_generator.py
-├── README.md
-└── ...
+### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
 ```
 
-## Setup
+### 2. Set Up Your API Key
+Create a `.env` file in the project root:
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+```
 
-1. **Clone the repository**
-2. **Create and activate a virtual environment**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. **Set your OpenAI API key**
-   - Add it to a `.env` file as `OPENAI_API_KEY=sk-...`
-   - Or enter it in the Streamlit sidebar
-5. **Run the app**
-   ```bash
-   streamlit run src/app.py
-   ```
+### 3. Run the Chatbot
+```bash
+cd src
+streamlit run app_chatbot.py
+```
 
-## Adding/Editing Templates
-- Add new JSON files to `data/templates/` following the structure of `outreach.json` or `followup.json`.
-- Templates are auto-discovered and selectable in the UI.
-- Placeholders (e.g., `[Your Name]`, `[Recipient Organization]`) are replaced with form input values.
+The app will open in your browser at `http://localhost:8501`
 
-## Current Capabilities
-- **Outreach**: Fully functional. Supports custom value propositions and call to action.
-- **Follow Up**: (Beta) Form adapts to show only relevant fields. Not fully tested.
-- **Preview**: Sidebar shows a live preview of the selected template with example data.
-- **Error Handling**: UI displays detailed error messages if email generation fails.
+## 💬 How to Use
 
-## Extending OutboundOwl
-- Add new templates for other email types (e.g., "Thank You", "Re-Engagement") by adding new JSON files.
-- Update the form logic in `src/app.py` to support new template-specific fields as needed.
+### Basic Conversation Flow
 
-## Known Issues
-- Only "Outreach" template is fully tested.
-- "Follow Up" template is available but may need further validation.
-- Some browser extensions may cause harmless console errors (can be ignored).
+1. **Start the conversation** - Tell the AI what kind of email you want to write
+2. **Answer questions** - The AI will ask for missing information naturally
+3. **Get your email** - Once enough context is gathered, your personalized email is generated
 
-## License
-MIT 
+### Example Conversation
 
-## Roadmap
+```
+You: Hi, I want to write a cold outreach email to a potential client.
 
-- **Guide on Getting Your Own OpenAI Token**
-  - Add a front-end guide or link to help users obtain and use their own OpenAI API key.
-- **Follow Up Email Development**
-  - Continue improving and testing the Follow Up template and workflow.
-- **Export Form Data as JSON**
-  - Allow users to export the main fields of their completed form as a JSON file for reuse or record-keeping.
-- **Import/Upload JSON for Reuse**
-  - Enable users to upload a JSON file to pre-fill the form, making it easy to reuse personal or company information.
-- **Paste Full Email as Context**
-  - Add a feature to let users paste an existing email to use as additional context for the LLM (for formatting or content inspiration).
-- **Export Email with Rich Formatting for Gmail**
-  - Provide an option to export the generated email with HTML or rich formatting for direct use in Gmail or other email clients (if possible). 
+AI: I'd be happy to help! To create a personalized email, I need some information:
+    - Your name and title
+    - Your company name
+    - The recipient's name and company
+    - What you're offering
+    - Any specific benefits
+    - Your preferred tone
+
+You: I'm John Smith, a sales manager at TechCorp. I want to reach out to Sarah Johnson at InnovateTech about our new CRM solution.
+
+AI: Great! Now I need a bit more information to make this compelling:
+    - What specific benefits does your CRM offer?
+    - What makes it relevant for InnovateTech?
+    - What tone would you prefer?
+
+You: Our CRM helps companies increase sales by 30% and reduce customer churn. It's specifically designed for tech companies like theirs. I'd like a professional but friendly tone.
+
+AI: Perfect! Here's your personalized cold outreach email:
+    [Generated email content]
+```
+
+## ⚙️ Configuration
+
+### Sidebar Settings
+
+- **Model Provider**: Currently supports OpenAI
+- **Model Selection**: Choose from GPT-4, GPT-4 Turbo, or GPT-3.5 Turbo
+- **API Key**: Enter your OpenAI API key (or set in .env file)
+- **Default Tone**: Set your preferred email tone
+- **Language**: Choose the email language
+
+### Context Display
+
+Toggle "Show Extracted Context" in the sidebar to see what information the AI has extracted from your conversation.
+
+## 🎯 Features
+
+### ✅ What's New (vs. Old Form Interface)
+
+- **Natural Conversation**: No more rigid forms - chat naturally
+- **Progressive Context Building**: Information is gathered through conversation
+- **Interactive Questioning**: AI asks for missing information when needed
+- **Real-time Configuration**: Change settings without restarting
+- **Context Visualization**: See what the AI understands about your request
+- **Copy to Clipboard**: One-click email copying
+- **Conversation Management**: Clear, regenerate, or restart conversations
+
+### 🔧 Technical Features
+
+- **Provider-Agnostic**: Built to support multiple LLM providers (OpenAI first)
+- **Session Management**: Maintains conversation state during your session
+- **Error Handling**: Graceful handling of API errors and missing configuration
+- **Responsive Design**: Works on desktop and mobile devices
+
+## 🧪 Testing
+
+Run the demo to see the chatbot in action:
+```bash
+cd src
+python demo_chatbot.py
+```
+
+Run tests to ensure everything works:
+```bash
+PYTHONPATH=src pytest src/tests/
+```
+
+## 📁 File Structure
+
+```
+src/
+├── app_chatbot.py          # Main chatbot Streamlit app
+├── demo_chatbot.py         # Demo script showing conversation flow
+├── services/
+│   ├── config_service.py   # Configuration management
+│   ├── llm_service.py      # LLM integration
+│   └── prompt_builder.py   # Conversational context building
+└── tests/
+    └── test_chatbot_app.py # Chatbot app tests
+```
+
+## 🔄 Migration from Old Interface
+
+The old form-based interface has been completely replaced with this new conversational chatbot interface:
+
+- **Old**: Fill out forms → Generate email
+- **New**: Chat naturally → AI guides you → Generate email
+
+The new interface provides a much better user experience with natural conversation flow and intelligent context building.
+
+## 🚧 Known Limitations
+
+- Currently only supports OpenAI (other providers coming soon)
+- Session state is ephemeral (clears on page refresh)
+- Requires internet connection for API calls
+
+## 🎉 Benefits
+
+1. **User-Friendly**: No learning curve - just chat naturally
+2. **Flexible**: No rigid form fields - provide information in any order
+3. **Intelligent**: AI guides you to provide the right information
+4. **Efficient**: Faster than filling out forms
+5. **Personalized**: Context-aware email generation
+
+## 🔮 Future Enhancements
+
+- Multi-provider support (Anthropic, Google, etc.)
+- Conversation history persistence
+- Email templates and variations
+- A/B testing suggestions
+- Integration with email clients
+- Team collaboration features 
