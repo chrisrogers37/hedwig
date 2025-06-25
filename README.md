@@ -1,13 +1,30 @@
-# 🦉 OutboundOwl - AI Email Assistant
+# 🦉 OutboundOwl - AI-Powered Conversational Email Assistant
 
 ## Overview
 
-OutboundOwl features a **conversational chatbot interface** that makes creating personalized sales emails as easy as having a conversation. No more filling out forms - just chat naturally with the AI!
+OutboundOwl is an intelligent email assistant that creates personalized outreach emails through natural conversation. Instead of filling out rigid forms, simply chat with the AI about your goals, and it will guide you to create compelling, personalized emails for any use case.
+
+## ✨ Key Features
+
+- **🎯 Conversational Interface**: Chat naturally with the AI to describe your email goals
+- **🧠 Context-Aware**: The AI remembers your conversation and builds context progressively
+- **🔄 Session Persistence**: Your conversation state is maintained across interactions
+- **🎨 Multiple Tones**: Choose from professional, casual, friendly, formal, or natural tones
+- **🌍 Multi-Language**: Support for English, Spanish, French, and German
+- **📋 One-Click Copy**: Copy generated emails directly to your clipboard
+- **🔄 Regenerate**: Easily regenerate emails with different approaches
+- **📊 Conversation Stats**: Track your conversation progress and history
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### Prerequisites
+- Python 3.8+
+- OpenAI API key
+
+### 1. Clone and Install
 ```bash
+git clone <repository-url>
+cd outbound-owl
 pip install -r requirements.txt
 ```
 
@@ -17,7 +34,7 @@ Create a `.env` file in the project root:
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-### 3. Run the Chatbot
+### 3. Run the Application
 ```bash
 cd src
 streamlit run app_chatbot.py
@@ -25,128 +42,211 @@ streamlit run app_chatbot.py
 
 The app will open in your browser at `http://localhost:8501`
 
-## 💬 How to Use
+## 💬 How It Works
 
-### Basic Conversation Flow
+### Conversational Flow
 
-1. **Start the conversation** - Tell the AI what kind of email you want to write
-2. **Answer questions** - The AI will ask for missing information naturally
-3. **Get your email** - Once enough context is gathered, your personalized email is generated
+1. **Start Chatting**: Describe what kind of email you want to create
+2. **AI Guides You**: The AI asks for missing information naturally
+3. **Get Your Email**: Receive a personalized, professional email draft
+4. **Iterate**: Provide feedback to refine the email further
 
 ### Example Conversation
 
 ```
-You: Hi, I want to write a cold outreach email to a potential client.
+You: I need help writing an outreach email for getting DJ gigs in NYC
 
-AI: I'd be happy to help! To create a personalized email, I need some information:
-    - Your name and title
-    - Your company name
-    - The recipient's name and company
-    - What you're offering
-    - Any specific benefits
-    - Your preferred tone
+AI: I'd be happy to help you create an outreach email for DJ gigs! To make this 
+    compelling, I need a few details:
+    
+    - Your name and what you do as a DJ
+    - What types of venues or events you're targeting
+    - What makes you unique or special
+    - What you're offering (rates, availability, etc.)
 
-You: I'm John Smith, a sales manager at TechCorp. I want to reach out to Sarah Johnson at InnovateTech about our new CRM solution.
+You: I'm DJ Alex, I do electronic and hip-hop. I'm targeting nightclubs and 
+     corporate events. I have 5 years experience and can work any night.
 
-AI: Great! Now I need a bit more information to make this compelling:
-    - What specific benefits does your CRM offer?
-    - What makes it relevant for InnovateTech?
-    - What tone would you prefer?
+AI: Perfect! Here's a draft outreach email for you:
 
-You: Our CRM helps companies increase sales by 30% and reduce customer churn. It's specifically designed for tech companies like theirs. I'd like a professional but friendly tone.
+    [Generated personalized email]
 
-AI: Perfect! Here's your personalized cold outreach email:
-    [Generated email content]
+    Would you like me to adjust the tone or add any specific details?
 ```
+
+## 🏗️ Architecture
+
+OutboundOwl is built with a modular, service-oriented architecture:
+
+### Core Services
+
+- **`ChatHistoryManager`**: Manages conversation state and message history
+- **`PromptBuilder`**: Constructs context-aware prompts from conversation history
+- **`LLMService`**: Handles communication with language models
+- **`ConfigService`**: Manages application configuration and settings
+
+### Key Design Principles
+
+- **Separation of Concerns**: Each service has a single responsibility
+- **Session State Management**: Persistent conversation state across Streamlit reruns
+- **Conversational-First**: Built around natural conversation flow
+- **Extensible**: Easy to add new LLM providers or features
 
 ## ⚙️ Configuration
 
 ### Sidebar Settings
 
-- **Model Provider**: Currently supports OpenAI
-- **Model Selection**: Choose from GPT-4, GPT-4 Turbo, or GPT-3.5 Turbo
+- **Provider**: Currently supports OpenAI (extensible for other providers)
+- **Model**: Choose from GPT-4, GPT-4 Turbo, or GPT-3.5 Turbo
 - **API Key**: Enter your OpenAI API key (or set in .env file)
-- **Default Tone**: Set your preferred email tone
+- **Default Tone**: Set your preferred email tone (natural, professional, casual, friendly, formal)
 - **Language**: Choose the email language
 
-### Context Display
+### Conversation Management
 
-Toggle "Show Extracted Context" in the sidebar to see what information the AI has extracted from your conversation.
-
-## 🎯 Features
-
-### ✅ What's New (vs. Old Form Interface)
-
-- **Natural Conversation**: No more rigid forms - chat naturally
-- **Progressive Context Building**: Information is gathered through conversation
-- **Interactive Questioning**: AI asks for missing information when needed
-- **Real-time Configuration**: Change settings without restarting
-- **Context Visualization**: See what the AI understands about your request
-- **Copy to Clipboard**: One-click email copying
-- **Conversation Management**: Clear, regenerate, or restart conversations
-
-### 🔧 Technical Features
-
-- **Provider-Agnostic**: Built to support multiple LLM providers (OpenAI first)
-- **Session Management**: Maintains conversation state during your session
-- **Error Handling**: Graceful handling of API errors and missing configuration
-- **Responsive Design**: Works on desktop and mobile devices
+- **Show Conversation Stats**: View detailed conversation analytics
+- **Clear Conversation**: Start fresh with a new conversation
+- **Regenerate**: Create a new version of the current email
 
 ## 🧪 Testing
 
-Run the demo to see the chatbot in action:
+OutboundOwl includes comprehensive test coverage. See [Testing Guide](src/tests/README.md) for detailed information.
+
+### Quick Test Commands
+
+```bash
+# Run all tests
+cd src
+python -m pytest tests/ -v
+
+# Run specific test categories
+python -m pytest tests/test_prompt_builder.py -v
+python -m pytest tests/test_chat_history_manager.py -v
+python -m pytest tests/test_llm_service.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=services --cov-report=html
+```
+
+## 📁 Project Structure
+
+```
+outbound-owl/
+├── README.md                    # This file
+├── requirements.txt             # Python dependencies
+├── src/
+│   ├── app_chatbot.py          # Main Streamlit application
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── chat_history_manager.py  # Conversation state management
+│   │   ├── config_service.py        # Configuration management
+│   │   ├── llm_service.py           # LLM integration
+│   │   ├── prompt_builder.py        # Context-aware prompt construction
+│   │   └── logging_utils.py         # Logging utilities
+│   └── tests/
+│       ├── README.md            # Testing guide
+│       ├── conftest.py          # Pytest configuration
+│       ├── test_chat_history_manager.py
+│       ├── test_config_service.py
+│       ├── test_llm_service.py
+│       ├── test_prompt_builder.py
+│       └── test_chatbot_app.py
+└── venv/                        # Virtual environment (not in repo)
+```
+
+## 🔧 Development
+
+### Setting Up Development Environment
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install development dependencies
+pip install pytest pytest-cov
+```
+
+### Running Tests
+
 ```bash
 cd src
-python demo_chatbot.py
+python -m pytest tests/ -v --cov=services --cov-report=term-missing
 ```
 
-Run tests to ensure everything works:
-```bash
-PYTHONPATH=src pytest src/tests/
-```
+### Code Style
 
-## 📁 File Structure
-
-```
-src/
-├── app_chatbot.py          # Main chatbot Streamlit app
-├── demo_chatbot.py         # Demo script showing conversation flow
-├── services/
-│   ├── config_service.py   # Configuration management
-│   ├── llm_service.py      # LLM integration
-│   └── prompt_builder.py   # Conversational context building
-└── tests/
-    └── test_chatbot_app.py # Chatbot app tests
-```
-
-## 🔄 Migration from Old Interface
-
-The old form-based interface has been completely replaced with this new conversational chatbot interface:
-
-- **Old**: Fill out forms → Generate email
-- **New**: Chat naturally → AI guides you → Generate email
-
-The new interface provides a much better user experience with natural conversation flow and intelligent context building.
+The project follows PEP 8 guidelines. Consider using:
+- `black` for code formatting
+- `flake8` for linting
+- `mypy` for type checking
 
 ## 🚧 Known Limitations
 
-- Currently only supports OpenAI (other providers coming soon)
-- Session state is ephemeral (clears on page refresh)
-- Requires internet connection for API calls
+- **Provider Support**: Currently only supports OpenAI (other providers planned)
+- **Session Persistence**: Session state clears on browser refresh (persistent storage planned)
+- **Internet Required**: Requires active internet connection for API calls
+- **Token Limits**: Long conversations may hit LLM token limits (auto-summarization implemented)
 
-## 🎉 Benefits
+## 🎯 Use Cases
 
-1. **User-Friendly**: No learning curve - just chat naturally
-2. **Flexible**: No rigid form fields - provide information in any order
-3. **Intelligent**: AI guides you to provide the right information
-4. **Efficient**: Faster than filling out forms
-5. **Personalized**: Context-aware email generation
+OutboundOwl is perfect for:
 
-## 🔮 Future Enhancements
+- **Sales Outreach**: Cold emails to potential clients
+- **Networking**: Follow-up emails after meetings or events
+- **Job Applications**: Professional outreach to hiring managers
+- **Partnership Proposals**: Business development emails
+- **Event Promotion**: Outreach to venues, sponsors, or attendees
+- **Content Collaboration**: Reaching out to potential collaborators
 
-- Multi-provider support (Anthropic, Google, etc.)
-- Conversation history persistence
-- Email templates and variations
-- A/B testing suggestions
-- Integration with email clients
-- Team collaboration features 
+## 🔮 Roadmap
+
+### Short Term
+- [ ] Persistent conversation storage
+- [ ] Email template library
+- [ ] A/B testing suggestions
+- [ ] Email performance analytics
+
+### Medium Term
+- [ ] Multi-provider support (Anthropic, Google, etc.)
+- [ ] Team collaboration features
+- [ ] Integration with email clients
+- [ ] Advanced tone customization
+
+### Long Term
+- [ ] AI-powered email optimization
+- [ ] Multi-language conversation support
+- [ ] Voice interface
+- [ ] Mobile app
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+
+- Write tests for new features
+- Follow the existing code style
+- Update documentation as needed
+- Ensure all tests pass before submitting
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Streamlit](https://streamlit.io/) for the web interface
+- Powered by [OpenAI](https://openai.com/) for language model capabilities
+- Inspired by the need for more natural, conversational AI tools
+
+---
+
+**Ready to create amazing emails through conversation? Start chatting with OutboundOwl today!** 🦉 
