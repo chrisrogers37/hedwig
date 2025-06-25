@@ -5,7 +5,7 @@ Tests for ChatHistoryManager
 import pytest
 import time
 from unittest.mock import Mock, patch
-from src.services.chat_history_manager import (
+from services.chat_history_manager import (
     ChatHistoryManager, 
     ChatMessage, 
     MessageType
@@ -398,9 +398,9 @@ class TestChatHistoryManager:
         
         # Check that we have the expected messages (the last 3 added)
         message_contents = [msg.content for msg in manager.messages]
-        assert "Draft 3" in message_contents
-        assert "Feedback 3" in message_contents
-        assert "Draft 2" in message_contents  # This should be the 3rd from last
+        assert "Feedback 2" in message_contents  # 3rd from last
+        assert "Draft 3" in message_contents      # 2nd from last
+        assert "Feedback 3" in message_contents   # Last
     
     def test_export_conversation(self):
         """Test exporting conversation."""

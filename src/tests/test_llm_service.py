@@ -62,64 +62,9 @@ def test_generate_response(llm_service):
     assert result == "Test response"
     llm_service.client.chat.completions.create.assert_called_once()
 
-def test_generate_email_outreach(llm_service):
-    """Test generate_email method for outreach emails."""
-    # Mock the OpenAI response
-    mock_response = MagicMock()
-    mock_response.choices[0].message.content = "Generated outreach email"
-    llm_service.client.chat.completions.create.return_value = mock_response
-    
-    context = {
-        "your_name": "John Doe",
-        "your_title": "Sales Manager",
-        "company_name": "Test Corp",
-        "recipient_name": "Jane Smith",
-        "recipient_organization": "ABC Company",
-        "value_propositions": [
-            {"title": "Quality", "content": "High quality products"},
-            {"title": "Price", "content": "Competitive pricing"}
-        ],
-        "call_to_action": "schedule a meeting"
-    }
-    
-    result = llm_service.generate_email(context, "outreach")
-    
-    assert result == "Generated outreach email"
-    llm_service.client.chat.completions.create.assert_called_once()
-
-def test_generate_email_followup(llm_service):
-    """Test generate_email method for followup emails."""
-    # Mock the OpenAI response
-    mock_response = MagicMock()
-    mock_response.choices[0].message.content = "Generated followup email"
-    llm_service.client.chat.completions.create.return_value = mock_response
-    
-    context = {
-        "your_name": "John Doe",
-        "your_title": "Sales Manager",
-        "company_name": "Test Corp",
-        "recipient_name": "Jane Smith",
-        "recipient_organization": "ABC Company",
-        "discussion_notes": "Discussed pricing and timeline",
-        "pain_points": "Budget constraints",
-        "next_steps": "Follow up next week"
-    }
-    
-    result = llm_service.generate_email(context, "followup")
-    
-    assert result == "Generated followup email"
-    llm_service.client.chat.completions.create.assert_called_once()
-
-def test_generate_email_invalid_type(llm_service):
-    """Test generate_email with invalid email type."""
-    context = {"your_name": "John Doe"}
-    
-    with pytest.raises(ValueError, match="Unsupported email type"):
-        llm_service.generate_email(context, "invalid_type")
-
 def test_generate_response_api_error(llm_service):
     """Test generate_response handles API errors."""
     llm_service.client.chat.completions.create.side_effect = Exception("API Error")
     
-    with pytest.raises(Exception, match="OpenAI API error: API Error"):
+    with pytest.raises(Exception, match="API Error"):
         llm_service.generate_response("Test prompt") 

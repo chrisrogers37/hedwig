@@ -11,7 +11,7 @@ sys.path.append(project_root)
 from services.config_service import AppConfig
 from services.llm_service import LLMService
 from services.prompt_builder import PromptBuilder, Profile
-from services.chat_history_manager import ChatHistoryManager
+from services.chat_history_manager import ChatHistoryManager, MessageType
 from services.logging_utils import log
 import pyperclip
 
@@ -88,7 +88,7 @@ def render_configuration_sidebar(config):
     st.sidebar.subheader("Email Settings")
     tone = st.sidebar.selectbox(
         "Default Tone",
-        ["professional", "casual", "friendly", "formal"],
+        ["natural", "professional", "casual", "friendly", "formal"],
         help="Default tone for generated emails"
     )
     language = st.sidebar.selectbox(
@@ -107,11 +107,19 @@ def render_chat_interface(chat_history_manager, prompt_builder):
     """Render the main chat interface."""
     st.title("OutboundOwl: Generate Outreach Emails For Any Use Case")
     st.markdown("Chat with me to create personalized outreach emails! Just describe your goal and I'll generate a draft.")
-    
-    # Initialize chat history in session state
-    if "chat_history_manager" not in st.session_state:
-        st.session_state['chat_history_manager'] = chat_history_manager
-    
+
+    # Get services from session state (they should already be there from main())
+    chat_history_manager = st.session_state.get('chat_history_manager', chat_history_manager)
+    prompt_builder = st.session_state.get('prompt_builder', prompt_builder)
+
+    # Add a default assistant message at initialization if history is empty
+    if not chat_history_manager.messages:
+        default_msg = (
+            "Hi! I'm OutboundOwl, your AI email assistant. What kind of outreach email would you like to create today? "
+            "Just describe your goal, and I'll help you draft the perfect message."
+        )
+        chat_history_manager.add_draft(default_msg)
+
     # Display chat messages from ChatHistoryManager
     messages = chat_history_manager.get_recent_messages(count=50)  # Show last 50 messages
     for message in messages:
@@ -121,25 +129,28 @@ def render_chat_interface(chat_history_manager, prompt_builder):
             st.chat_message("user").write(f"Feedback: {message.content}")
         elif message.type.value == 'initial_prompt':
             st.chat_message("user").write(message.content)
-    
-    # Chat input
-    if user_input := st.chat_input("Describe your outreach goal or give feedback on the draft..."):
+
+    regenerate = st.session_state.get('regenerate', False)
+    user_input = st.chat_input("Describe your outreach goal or give feedback on the draft...")
+
+    # Only add a new message if user_input is present
+    if user_input:
         log(f"User message: {user_input}", prefix="OutboundOwl")
-        
-        # Add user message to chat history
-        chat_history_manager.add_message(user_input, chat_history_manager.MessageType.INITIAL_PROMPT)
-        
-        # Display user message
+        chat_history_manager.add_message(user_input, MessageType.INITIAL_PROMPT)
         with st.chat_message("user"):
             st.markdown(user_input)
-        
-        # Generate draft using full conversation context
+        st.session_state['regenerate'] = False  # Not a regeneration, it's a new message
+        regenerate = False
+
+    # Regenerate or new user input triggers LLM call
+    if regenerate or user_input:
         try:
-            draft = prompt_builder.generate_draft()
+            # Always build the prompt after the user message is added to history
+            prompt = prompt_builder.build_llm_prompt()
+            draft = prompt_builder.llm_service.generate_response(prompt, max_tokens=1500)
             if draft:
+                chat_history_manager.add_draft(draft)  # Persist assistant reply
                 st.chat_message('assistant').write(draft)
-                
-                # Add action buttons
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("📋 Copy to Clipboard", key="copy_btn"):
@@ -150,12 +161,14 @@ def render_chat_interface(chat_history_manager, prompt_builder):
                             st.error(f"❌ Failed to copy: {e}")
                 with col2:
                     if st.button("🔄 Regenerate", key="regenerate_btn"):
+                        st.session_state['regenerate'] = True
                         st.rerun()
             else:
                 st.chat_message('assistant').write("I'm not sure how to respond. Please try again.")
         except Exception as e:
             st.error(f"❌ Error generating draft: {e}")
             log(f"ERROR generating draft: {e}", prefix="OutboundOwl")
+        st.session_state['regenerate'] = False
 
 def render_email_actions(email_content):
     """Render actions for the generated email."""
@@ -221,9 +234,23 @@ def main():
     if config.validate():
         try:
             llm_service = LLMService(config)
-            chat_history_manager = ChatHistoryManager()
-            chat_history_manager.start_conversation()
-            prompt_builder = PromptBuilder(llm_service, chat_history_manager)
+            
+            # Only create new instances if they don't exist in session state
+            if "chat_history_manager" not in st.session_state:
+                chat_history_manager = ChatHistoryManager()
+                chat_history_manager.start_conversation()
+                st.session_state['chat_history_manager'] = chat_history_manager
+            else:
+                chat_history_manager = st.session_state['chat_history_manager']
+            
+            if "prompt_builder" not in st.session_state:
+                prompt_builder = PromptBuilder(llm_service, chat_history_manager)
+                st.session_state['prompt_builder'] = prompt_builder
+            else:
+                prompt_builder = st.session_state['prompt_builder']
+                # Update the LLM service in case it changed
+                prompt_builder.llm_service = llm_service
+                
         except Exception as e:
             st.error(f"❌ Failed to reinitialize services: {e}")
             log(f"ERROR reinitializing services: {e}\n{traceback.format_exc()}", prefix="OutboundOwl")
