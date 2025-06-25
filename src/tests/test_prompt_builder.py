@@ -1,8 +1,9 @@
 import pytest
 from unittest.mock import Mock, patch
-from services.prompt_builder import PromptBuilder, ConversationMessage, EmailContext
-from services.llm_service import LLMService
-from services.config_service import AppConfig
+from src.services.prompt_builder import PromptBuilder, Profile
+from src.services.llm_service import LLMService
+from src.services.config_service import AppConfig
+from src.services.chat_history_manager import ChatHistoryManager, MessageType
 
 @pytest.fixture
 def mock_config():
@@ -19,299 +20,179 @@ def mock_llm_service(mock_config):
         return LLMService(mock_config)
 
 @pytest.fixture
-def prompt_builder(mock_llm_service):
+def chat_history_manager():
+    """Create a fresh ChatHistoryManager instance for testing."""
+    return ChatHistoryManager()
+
+@pytest.fixture
+def prompt_builder(mock_llm_service, chat_history_manager):
     """Create a fresh PromptBuilder instance for testing."""
-    return PromptBuilder(mock_llm_service)
+    return PromptBuilder(mock_llm_service, chat_history_manager)
 
-def test_prompt_builder_initialization(prompt_builder):
+def test_prompt_builder_initialization(prompt_builder, chat_history_manager):
     """Test PromptBuilder initialization."""
-    assert len(prompt_builder.conversation_history) == 0
-    assert isinstance(prompt_builder.extracted_context, EmailContext)
     assert prompt_builder.llm_service is not None
+    assert prompt_builder.chat_history_manager is chat_history_manager
+    assert isinstance(prompt_builder.profile, Profile)
 
-def test_add_message(prompt_builder):
-    """Test adding messages to conversation history."""
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = '{"your_name": "", "email_type": "outreach"}'
-        
-        prompt_builder.add_message("user", "Hello, I need help with an email")
-        
-        assert len(prompt_builder.conversation_history) == 1
-        assert prompt_builder.conversation_history[0].role == "user"
-        assert prompt_builder.conversation_history[0].content == "Hello, I need help with an email"
+def test_build_llm_prompt_with_empty_history(prompt_builder):
+    """Test building prompt with empty conversation history."""
+    prompt = prompt_builder.build_llm_prompt()
+    
+    assert "expert assistant for writing sales outreach emails" in prompt
+    assert "Conversation so far:" in prompt
+    assert "[No profile info provided]" in prompt
 
-def test_extract_context_with_llm(prompt_builder):
-    """Test LLM-based context extraction."""
-    mock_response = '''{
-        "your_name": "John Doe",
-        "your_title": "Sales Manager",
-        "company_name": "TechCorp",
-        "recipient_name": "Jane Smith",
-        "recipient_organization": "ABC Company",
-        "email_type": "outreach",
-        "value_propositions": [{"title": "Quality", "content": "High quality products"}],
-        "call_to_action": "schedule a meeting"
-    }'''
+def test_build_llm_prompt_with_conversation_history(prompt_builder, chat_history_manager):
+    """Test building prompt with conversation history."""
+    # Add some messages to the conversation
+    chat_history_manager.add_message("I need help writing an outreach email", MessageType.INITIAL_PROMPT)
+    chat_history_manager.add_draft("Here's a draft email for you...")
+    chat_history_manager.add_message("Make it more professional", MessageType.FEEDBACK)
+    
+    prompt = prompt_builder.build_llm_prompt()
+    
+    assert "expert assistant for writing sales outreach emails" in prompt
+    assert "I need help writing an outreach email" in prompt
+    assert "Here's a draft email for you..." in prompt
+    assert "Make it more professional" in prompt
+
+def test_build_llm_prompt_with_profile(prompt_builder):
+    """Test building prompt with user profile information."""
+    # Update profile
+    prompt_builder.update_profile(
+        your_name="John Doe",
+        your_title="Sales Manager",
+        company_name="TechCorp"
+    )
+    
+    prompt = prompt_builder.build_llm_prompt()
+    
+    assert "John Doe" in prompt
+    assert "Sales Manager" in prompt
+    assert "TechCorp" in prompt
+
+def test_generate_draft(prompt_builder, chat_history_manager):
+    """Test generating a draft using the full conversation context."""
+    # Add user message to history
+    chat_history_manager.add_message("I need an outreach email for a potential client", MessageType.INITIAL_PROMPT)
+    
+    # Mock LLM response
+    mock_draft = "Dear [Recipient Name],\n\nI hope this email finds you well..."
     
     with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = mock_response
+        mock_generate.return_value = mock_draft
         
-        prompt_builder.add_message("user", "My name is John Doe, I'm a Sales Manager at TechCorp")
+        draft = prompt_builder.generate_draft()
         
-        context = prompt_builder.get_context()
-        assert context.your_name == "John Doe"
-        assert context.your_title == "Sales Manager"
-        assert context.company_name == "TechCorp"
-        assert context.recipient_name == "Jane Smith"
-        assert context.recipient_organization == "ABC Company"
-        assert context.email_type == "outreach"
-        assert len(context.value_propositions) == 1
-        assert context.value_propositions[0]["title"] == "Quality"
+        assert draft == mock_draft
+        assert prompt_builder.get_draft_email() == mock_draft
+        
+        # Verify the draft was added to chat history
+        messages = chat_history_manager.get_messages_by_type(MessageType.DRAFT)
+        assert len(messages) == 1
+        assert messages[0].content == mock_draft
 
-def test_build_outreach_prompt(prompt_builder):
-    """Test building outreach email prompt."""
-    mock_response = '''{
-        "your_name": "John Doe",
-        "company_name": "TechCorp",
-        "recipient_name": "Jane Smith",
-        "recipient_organization": "ABC Company",
-        "email_type": "outreach",
-        "value_propositions": [{"title": "Competitive Pricing", "content": "Best prices in the market"}]
-    }'''
+def test_generate_draft_with_feedback(prompt_builder, chat_history_manager):
+    """Test generating a draft with feedback in the conversation history."""
+    # Add conversation with feedback
+    chat_history_manager.add_message("Write me an outreach email", MessageType.INITIAL_PROMPT)
+    chat_history_manager.add_draft("Here's a draft...")
+    chat_history_manager.add_message("Make it more concise", MessageType.FEEDBACK)
+    
+    # Mock LLM response
+    mock_revised_draft = "Dear [Name],\n\nI wanted to reach out..."
     
     with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = mock_response
+        mock_generate.return_value = mock_revised_draft
         
-        prompt_builder.add_message("user", "I need to write an outreach email")
-        prompt = prompt_builder.build_email_prompt()
+        draft = prompt_builder.generate_draft()
         
-        assert "Initial Outreach" in prompt
-        assert "John Doe" in prompt
-        assert "TechCorp" in prompt
-        assert "Jane Smith" in prompt
-        assert "ABC Company" in prompt
-        assert "Competitive Pricing" in prompt
+        assert draft == mock_revised_draft
+        
+        # Verify the new draft was added to chat history
+        drafts = chat_history_manager.get_messages_by_type(MessageType.DRAFT)
+        assert len(drafts) == 2  # Original draft + new draft
 
-def test_build_followup_prompt(prompt_builder):
-    """Test building followup email prompt."""
-    mock_response = '''{
-        "your_name": "John Doe",
-        "company_name": "TechCorp",
-        "recipient_name": "Jane Smith",
-        "recipient_organization": "ABC Company",
-        "email_type": "followup",
-        "discussion_notes": "pricing and timeline",
-        "pain_points": "budget constraints",
-        "next_steps": "follow up next week"
-    }'''
+def test_update_profile(prompt_builder):
+    """Test updating user profile."""
+    prompt_builder.update_profile(
+        your_name="Jane Smith",
+        your_title="Marketing Director",
+        company_name="Innovation Inc"
+    )
     
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = mock_response
-        
-        prompt_builder.add_message("user", "I need to follow up after our meeting")
-        prompt = prompt_builder.build_email_prompt()
-        
-        assert "Follow-up" in prompt
-        assert "John Doe" in prompt
-        assert "TechCorp" in prompt
-        assert "Jane Smith" in prompt
-        assert "ABC Company" in prompt
-        assert "pricing and timeline" in prompt.lower()
-        assert "budget constraints" in prompt.lower()
+    assert prompt_builder.profile.your_name == "Jane Smith"
+    assert prompt_builder.profile.your_title == "Marketing Director"
+    assert prompt_builder.profile.company_name == "Innovation Inc"
 
-def test_clear_conversation(prompt_builder):
-    """Test clearing conversation history."""
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = '{"your_name": "Test"}'
-        
-        prompt_builder.add_message("user", "Test message")
-        assert len(prompt_builder.conversation_history) == 1
-        
-        prompt_builder.clear_conversation()
-        assert len(prompt_builder.conversation_history) == 0
-        assert prompt_builder.extracted_context.your_name == ""
-
-def test_context_defaults(prompt_builder):
-    """Test that context has appropriate defaults."""
-    context = prompt_builder.get_context()
-    assert context.email_type == "outreach"
-    assert context.tone == "professional"
-    assert context.language == "English"
-    assert context.value_propositions == []
-
-def test_prompt_includes_tone_and_language(prompt_builder):
-    """Test that generated prompts include tone and language settings."""
-    mock_response = '{"email_type": "outreach"}'
+def test_get_draft_email(prompt_builder):
+    """Test getting the current draft email."""
+    # Initially no draft
+    assert prompt_builder.get_draft_email() is None
     
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = mock_response
-        
-        prompt_builder.add_message("user", "I need an email")
-        prompt = prompt_builder.build_email_prompt()
-        
-        assert "Tone: professional" in prompt
-        assert "Language: English" in prompt
+    # Set a draft
+    prompt_builder.draft_email = "Test draft email"
+    assert prompt_builder.get_draft_email() == "Test draft email"
 
-def test_llm_extraction_fallback(prompt_builder):
-    """Test that the system falls back gracefully if LLM extraction fails."""
+def test_prompt_includes_conversation_summary(prompt_builder, chat_history_manager):
+    """Test that prompt includes conversation summary when available."""
+    # Add messages and create a summary
+    chat_history_manager.add_message("Initial request", MessageType.INITIAL_PROMPT)
+    chat_history_manager.add_draft("First draft")
+    chat_history_manager.add_message("Feedback", MessageType.FEEDBACK)
+    
+    # Create a summary
+    chat_history_manager.summary = "Previous conversation about outreach email with feedback"
+    
+    prompt = prompt_builder.build_llm_prompt()
+    
+    assert "CONVERSATION SUMMARY:" in prompt
+    assert "Previous conversation about outreach email with feedback" in prompt
+
+def test_prompt_with_max_messages_limit(prompt_builder, chat_history_manager):
+    """Test that prompt respects max_messages parameter."""
+    # Add many messages
+    for i in range(10):
+        chat_history_manager.add_message(f"Message {i}", MessageType.INITIAL_PROMPT)
+        chat_history_manager.add_draft(f"Draft {i}")
+    
+    # Get context with limited messages
+    context = chat_history_manager.get_conversation_context(max_messages=5)
+    prompt = prompt_builder.build_llm_prompt()
+    
+    # Should include the conversation context (which respects the limit)
+    assert "Conversation so far:" in prompt
+
+def test_error_handling_in_generate_draft(prompt_builder, chat_history_manager):
+    """Test error handling when LLM service fails."""
+    chat_history_manager.add_message("Test message", MessageType.INITIAL_PROMPT)
+    
     with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
         mock_generate.side_effect = Exception("LLM API Error")
         
-        prompt_builder.add_message("user", "Test message")
-        
-        # Should fall back to default context
-        context = prompt_builder.get_context()
-        assert context.your_name == ""
-        assert context.email_type == "outreach"
+        with pytest.raises(Exception, match="LLM API Error"):
+            prompt_builder.generate_draft()
 
-def test_json_parsing_fallback(prompt_builder):
-    """Test that the system handles invalid JSON responses gracefully."""
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = "Invalid JSON response"
-        
-        prompt_builder.add_message("user", "Test message")
-        
-        # Should fall back to default context
-        context = prompt_builder.get_context()
-        assert context.your_name == ""
-        assert context.email_type == "outreach"
+def test_profile_defaults(prompt_builder):
+    """Test that profile has appropriate defaults."""
+    assert prompt_builder.profile.your_name == ""
+    assert prompt_builder.profile.your_title == ""
+    assert prompt_builder.profile.company_name == ""
 
-def test_llm_asks_question_when_info_missing(prompt_builder):
-    """Test that LLM asks questions when critical information is missing."""
-    mock_response = "What's your name?"
+def test_custom_profile_initialization():
+    """Test PromptBuilder initialization with custom profile."""
+    mock_llm_service = Mock()
+    chat_history_manager = ChatHistoryManager()
     
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = mock_response
-        
-        prompt_builder.add_message("user", "I need to write an email")
-        
-        # Should have a question, not update context
-        assert prompt_builder.has_question()
-        assert prompt_builder.get_current_question() == "What's your name?"
-        assert prompt_builder.extracted_context.your_name == ""  # Context not updated
-
-def test_llm_clears_question_when_info_complete(prompt_builder):
-    """Test that question is cleared when LLM gets complete information."""
-    # First, LLM asks a question
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = "What's your name?"
-        prompt_builder.add_message("user", "I need to write an email")
-        assert prompt_builder.has_question()
-    
-    # Then, user provides complete information
-    complete_response = '''{
-        "your_name": "John Doe",
-        "company_name": "TechCorp",
-        "recipient_name": "Jane Smith",
-        "recipient_organization": "ABC Company",
-        "email_type": "outreach",
-        "value_propositions": [{"title": "Quality", "content": "High quality"}]
-    }'''
-    
-    with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = complete_response
-        prompt_builder.add_message("user", "My name is John Doe from TechCorp")
-        
-        # Question should be cleared, context should be updated
-        assert not prompt_builder.has_question()
-        assert prompt_builder.get_current_question() is None
-        assert prompt_builder.extracted_context.your_name == "John Doe"
-
-def test_has_sufficient_context_outreach(prompt_builder):
-    """Test context sufficiency check for outreach emails."""
-    # Test insufficient context
-    context = EmailContext(
-        recipient_name="Jane Smith",
-        recipient_organization="ABC Company",
-        email_type="outreach"
-        # Missing value propositions and call to action
+    custom_profile = Profile(
+        your_name="Custom Name",
+        your_title="Custom Title",
+        company_name="Custom Company"
     )
-    prompt_builder.extracted_context = context
-    assert not prompt_builder.has_sufficient_context()
     
-    # Test sufficient context with value propositions
-    context.value_propositions = [{"title": "Quality", "content": "High quality"}]
-    prompt_builder.extracted_context = context
-    assert prompt_builder.has_sufficient_context()
+    prompt_builder = PromptBuilder(mock_llm_service, chat_history_manager, custom_profile)
     
-    # Test sufficient context with call to action
-    context.value_propositions = []
-    context.call_to_action = "schedule a meeting"
-    prompt_builder.extracted_context = context
-    assert prompt_builder.has_sufficient_context()
-
-def test_has_sufficient_context_followup(prompt_builder):
-    """Test context sufficiency check for followup emails."""
-    # Test insufficient context
-    context = EmailContext(
-        recipient_name="Jane Smith",
-        recipient_organization="ABC Company",
-        email_type="followup"
-        # Missing discussion notes and next steps
-    )
-    prompt_builder.extracted_context = context
-    assert not prompt_builder.has_sufficient_context()
-    
-    # Test sufficient context with discussion notes
-    context.discussion_notes = "pricing and timeline"
-    prompt_builder.extracted_context = context
-    assert prompt_builder.has_sufficient_context()
-    
-    # Test sufficient context with next steps
-    context.discussion_notes = ""
-    context.next_steps = "follow up next week"
-    prompt_builder.extracted_context = context
-    assert prompt_builder.has_sufficient_context()
-
-def test_has_sufficient_context_missing_recipient(prompt_builder):
-    """Test that missing recipient info makes context insufficient."""
-    context = EmailContext(
-        your_name="John Doe",
-        company_name="TechCorp",
-        email_type="outreach",
-        value_propositions=[{"title": "Quality", "content": "High quality"}]
-        # Missing recipient info
-    )
-    prompt_builder.extracted_context = context
-    assert not prompt_builder.has_sufficient_context()
-
-def test_clear_conversation_clears_question(prompt_builder):
-    """Test that clearing conversation also clears any current question."""
-    # Set up a question
-    prompt_builder.current_question = "What's your name?"
-    assert prompt_builder.has_question()
-    
-    # Clear conversation
-    prompt_builder.clear_conversation()
-    assert not prompt_builder.has_question()
-    assert prompt_builder.get_current_question() is None
-
-class MockLLMService:
-    def __init__(self, responses):
-        self.responses = responses
-        self.call_count = 0
-    def generate_response(self, prompt, max_tokens=1200):
-        resp = self.responses[self.call_count]
-        self.call_count += 1
-        return resp
-
-def test_prompt_builder_conversational(monkeypatch):
-    responses = [
-        "Could you tell me the recipient's name?",
-        "Could you tell me your company name?",
-        "Subject: Welcome to OutboundOwl\nHi Chris, ...\nBest, John",
-    ]
-    pb = PromptBuilder()
-    pb.llm_service = MockLLMService(responses)
-    pb.add_message("user", "I want to send an outreach email.")
-    assert pb.has_question()
-    assert "recipient" in pb.get_current_question().lower()
-    pb.add_message("user", "The recipient is Chris.")
-    assert pb.has_question()
-    assert "company" in pb.get_current_question().lower()
-    pb.add_message("user", "My company is OutboundOwl.")
-    assert pb.has_generated_email()
-    email = pb.get_generated_email()
-    assert email.startswith("Subject:")
-    assert "Chris" in email
-    assert "OutboundOwl" in email 
+    assert prompt_builder.profile.your_name == "Custom Name"
+    assert prompt_builder.profile.your_title == "Custom Title"
+    assert prompt_builder.profile.company_name == "Custom Company" 

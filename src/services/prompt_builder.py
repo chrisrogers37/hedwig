@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from .llm_service import LLMService
 from .logging_utils import log
+from .chat_history_manager import ChatHistoryManager
 
 @dataclass
 class Profile:
@@ -13,16 +14,17 @@ class Profile:
 
 class PromptBuilder:
     """
-    Handles prompt construction and draft-refine loop for email generation.
-    No longer extracts JSON context from conversation; only uses optional profile info.
+    Handles prompt construction for email generation, using full conversation history from ChatHistoryManager.
     """
-    def __init__(self, llm_service: LLMService, profile: Optional[Profile] = None):
+    def __init__(self, llm_service: LLMService, chat_history_manager: ChatHistoryManager, profile: Optional[Profile] = None):
         self.llm_service = llm_service
+        self.chat_history_manager = chat_history_manager
         self.profile = profile or Profile()
         self.draft_email = None
-        self.last_user_message = None
 
-    def build_email_prompt(self, user_message: str, feedback: Optional[str] = None) -> str:
+    def build_llm_prompt(self) -> str:
+        # Get the full conversation context (history + summary)
+        conversation_context = self.chat_history_manager.get_conversation_context()
         profile_lines = []
         if self.profile.your_name:
             profile_lines.append(f"Name: {self.profile.your_name}")
@@ -31,36 +33,33 @@ class PromptBuilder:
         if self.profile.company_name:
             profile_lines.append(f"Company: {self.profile.company_name}")
         profile_text = "\n".join(profile_lines)
-        feedback_text = f"\n\nUser feedback: {feedback}" if feedback else ""
         prompt = (
             f"""
 You are an expert assistant for writing sales outreach emails.
 
-Here is the user's message describing their outreach goal:
-{user_message}
+Conversation so far:
+{conversation_context}
 
-Here is the user's optional profile information (use if helpful):
+User profile (if provided):
 {profile_text if profile_text else '[No profile info provided]'}
-{feedback_text}
 
 Your job:
-- Generate a draft outreach email using the information above.
-- If you need more information for a truly great, personalized email, you may ask for it conversationally, but always generate a draft with what you have.
+- Generate or refine a draft outreach email based on the above.
 - If the user provides feedback, refine the draft accordingly.
 - Be friendly, concise, and professional by default, unless the user requests otherwise.
-- Do not block draft generation for missing info. Never require all fields to be filled.
 - If the user says they're ready, just output the final draft.
 """
         )
         return prompt
 
-    def add_message(self, user_message: str, feedback: Optional[str] = None):
-        self.last_user_message = user_message
-        prompt = self.build_email_prompt(user_message, feedback)
+    def generate_draft(self):
+        prompt = self.build_llm_prompt()
         log(f"Prompt sent to LLM:\n{prompt}", prefix="PromptBuilder")
         llm_response = self.llm_service.generate_response(prompt, max_tokens=1500)
         log(f"LLM response:\n{llm_response}", prefix="PromptBuilder")
+        self.chat_history_manager.add_draft(llm_response)
         self.draft_email = llm_response
+        return llm_response
 
     def get_draft_email(self) -> Optional[str]:
         return self.draft_email

@@ -11,6 +11,7 @@ sys.path.append(project_root)
 from services.config_service import AppConfig
 from services.llm_service import LLMService
 from services.prompt_builder import PromptBuilder, Profile
+from services.chat_history_manager import ChatHistoryManager
 from services.logging_utils import log
 import pyperclip
 
@@ -33,15 +34,17 @@ def initialize_services():
     if not config.validate():
         st.error("⚠️ OpenAI API key is required. Please set it in the sidebar.")
         log("ERROR: OpenAI API key is missing or invalid.")
-        return None, None, None
+        return None, None, None, None
     try:
         llm_service = LLMService(config)
-        prompt_builder = PromptBuilder(llm_service)
-        return config, llm_service, prompt_builder
+        chat_history_manager = ChatHistoryManager()
+        chat_history_manager.start_conversation()
+        prompt_builder = PromptBuilder(llm_service, chat_history_manager)
+        return config, llm_service, chat_history_manager, prompt_builder
     except Exception as e:
         st.error(f"❌ Failed to initialize services: {e}")
         log(f"ERROR initializing services: {e}\n{traceback.format_exc()}")
-        return None, None, None
+        return None, None, None, None
 
 def render_configuration_sidebar(config):
     """Render the configuration sidebar."""
@@ -100,36 +103,59 @@ def render_configuration_sidebar(config):
     
     return config
 
-def render_chat_interface(prompt_builder):
+def render_chat_interface(chat_history_manager, prompt_builder):
     """Render the main chat interface."""
     st.title("OutboundOwl: Generate Outreach Emails For Any Use Case")
     st.markdown("Chat with me to create personalized outreach emails! Just describe your goal and I'll generate a draft.")
     
-    # Initialize chat history
-    if "chat_history" not in st.session_state:
-        st.session_state['chat_history'] = []
+    # Initialize chat history in session state
+    if "chat_history_manager" not in st.session_state:
+        st.session_state['chat_history_manager'] = chat_history_manager
     
-    # Display chat messages
-    for msg in st.session_state['chat_history']:
-        st.chat_message(msg['role']).write(msg['content'])
+    # Display chat messages from ChatHistoryManager
+    messages = chat_history_manager.get_recent_messages(count=50)  # Show last 50 messages
+    for message in messages:
+        if message.type.value in ['draft', 'revised_draft']:
+            st.chat_message("assistant").write(message.content)
+        elif message.type.value == 'feedback':
+            st.chat_message("user").write(f"Feedback: {message.content}")
+        elif message.type.value == 'initial_prompt':
+            st.chat_message("user").write(message.content)
     
-    # Remove question mode block (no longer needed)
     # Chat input
     if user_input := st.chat_input("Describe your outreach goal or give feedback on the draft..."):
         log(f"User message: {user_input}", prefix="OutboundOwl")
-        st.session_state['chat_history'].append({'role': 'user', 'content': user_input})
+        
+        # Add user message to chat history
+        chat_history_manager.add_message(user_input, chat_history_manager.MessageType.INITIAL_PROMPT)
+        
+        # Display user message
         with st.chat_message("user"):
             st.markdown(user_input)
-        prompt_builder.add_message(user_input)
-        draft = prompt_builder.get_draft_email()
-        if draft:
-            st.session_state['chat_history'].append({'role': 'assistant', 'content': draft})
-            st.chat_message('assistant').write(draft)
-            st.button("Copy to Clipboard", on_click=lambda: st.success("Copied!"))
-            st.button("Regenerate", on_click=lambda: prompt_builder.add_message(user_input))
-        else:
-            st.session_state['chat_history'].append({'role': 'assistant', 'content': "I'm not sure how to respond. Please try again."})
-            st.chat_message('assistant').write("I'm not sure how to respond. Please try again.")
+        
+        # Generate draft using full conversation context
+        try:
+            draft = prompt_builder.generate_draft()
+            if draft:
+                st.chat_message('assistant').write(draft)
+                
+                # Add action buttons
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("📋 Copy to Clipboard", key="copy_btn"):
+                        try:
+                            pyperclip.copy(draft)
+                            st.success("✅ Email copied to clipboard!")
+                        except Exception as e:
+                            st.error(f"❌ Failed to copy: {e}")
+                with col2:
+                    if st.button("🔄 Regenerate", key="regenerate_btn"):
+                        st.rerun()
+            else:
+                st.chat_message('assistant').write("I'm not sure how to respond. Please try again.")
+        except Exception as e:
+            st.error(f"❌ Error generating draft: {e}")
+            log(f"ERROR generating draft: {e}", prefix="OutboundOwl")
 
 def render_email_actions(email_content):
     """Render actions for the generated email."""
@@ -153,37 +179,37 @@ def render_email_actions(email_content):
     
     with col3:
         if st.button("🗑️ Clear Conversation"):
-            st.session_state['chat_history'] = []
+            st.session_state['chat_history_manager'].clear_conversation()
             st.rerun()
     
     # Show email in expandable section
     with st.expander("📄 View Full Email"):
         st.text_area("Generated Email", email_content, height=400)
 
-def render_context_display(prompt_builder):
-    """Display the current extracted context."""
-    if st.sidebar.checkbox("🔍 Show Extracted Context"):
-        st.sidebar.subheader("Extracted Context")
-        context = prompt_builder.get_context()
+def render_conversation_stats(chat_history_manager):
+    """Display conversation statistics and context."""
+    if st.sidebar.checkbox("🔍 Show Conversation Stats"):
+        st.sidebar.subheader("Conversation Stats")
+        stats = chat_history_manager.get_conversation_stats()
         
-        st.sidebar.write(f"**Your Name:** {context.your_name or 'Not specified'}")
-        st.sidebar.write(f"**Your Title:** {context.your_title or 'Not specified'}")
-        st.sidebar.write(f"**Company:** {context.company_name or 'Not specified'}")
-        st.sidebar.write(f"**Recipient:** {context.recipient_name or 'Not specified'}")
-        st.sidebar.write(f"**Organization:** {context.recipient_organization or 'Not specified'}")
-        st.sidebar.write(f"**Email Type:** {context.email_type}")
-        st.sidebar.write(f"**Tone:** {context.tone}")
-        st.sidebar.write(f"**Language:** {context.language}")
+        st.sidebar.write(f"**Total Messages:** {stats['total_messages']}")
+        st.sidebar.write(f"**Drafts:** {stats['drafts']}")
+        st.sidebar.write(f"**Revised Drafts:** {stats['revised_drafts']}")
+        st.sidebar.write(f"**Feedback Points:** {stats['feedback']}")
+        st.sidebar.write(f"**Has Summary:** {'Yes' if stats['has_summary'] else 'No'}")
         
-        if context.value_propositions:
-            st.sidebar.write("**Value Propositions:**")
-            for i, prop in enumerate(context.value_propositions, 1):
-                st.sidebar.write(f"  {i}. {prop['title']}: {prop['content']}")
+        if stats.get('duration_minutes'):
+            st.sidebar.write(f"**Duration:** {stats['duration_minutes']:.1f} minutes")
+        
+        # Show conversation summary if available
+        if chat_history_manager.summary:
+            st.sidebar.subheader("Conversation Summary")
+            st.sidebar.write(chat_history_manager.summary)
 
 def main():
     """Main application function."""
     # Initialize services
-    config, llm_service, prompt_builder = initialize_services()
+    config, llm_service, chat_history_manager, prompt_builder = initialize_services()
     
     if config is None:
         st.stop()
@@ -195,17 +221,19 @@ def main():
     if config.validate():
         try:
             llm_service = LLMService(config)
-            prompt_builder = PromptBuilder(llm_service)
+            chat_history_manager = ChatHistoryManager()
+            chat_history_manager.start_conversation()
+            prompt_builder = PromptBuilder(llm_service, chat_history_manager)
         except Exception as e:
             st.error(f"❌ Failed to reinitialize services: {e}")
             log(f"ERROR reinitializing services: {e}\n{traceback.format_exc()}", prefix="OutboundOwl")
             st.stop()
     
-    # Render context display
-    render_context_display(prompt_builder)
+    # Render conversation stats
+    render_conversation_stats(chat_history_manager)
     
     # Render main chat interface
-    render_chat_interface(prompt_builder)
+    render_chat_interface(chat_history_manager, prompt_builder)
 
 if __name__ == "__main__":
     main() 

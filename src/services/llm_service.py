@@ -2,7 +2,7 @@ from typing import Dict, Optional, Any, Tuple
 import openai
 from .config_service import AppConfig
 import os
-from services.config_service import get_config
+from .config_service import get_config
 from .logging_utils import log
 
 
