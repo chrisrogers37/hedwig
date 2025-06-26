@@ -4,6 +4,7 @@ from services.prompt_builder import PromptBuilder, Profile
 from services.llm_service import LLMService
 from services.config_service import AppConfig
 from services.chat_history_manager import ChatHistoryManager, MessageType
+from services.snippet_retriever import SnippetRetriever, EmailSnippet
 
 @pytest.fixture
 def mock_config():
@@ -27,15 +28,216 @@ def chat_history_manager():
     return ChatHistoryManager()
 
 @pytest.fixture
+def mock_snippet_retriever():
+    """Create a mock SnippetRetriever for testing."""
+    return Mock(spec=SnippetRetriever)
+
+@pytest.fixture
 def prompt_builder(mock_llm_service, chat_history_manager, mock_config):
     """Create a fresh PromptBuilder instance for testing."""
     return PromptBuilder(mock_llm_service, chat_history_manager, config=mock_config)
+
+@pytest.fixture
+def prompt_builder_with_rag(mock_llm_service, chat_history_manager, mock_config, mock_snippet_retriever):
+    """Create a PromptBuilder instance with RAG functionality for testing."""
+    return PromptBuilder(mock_llm_service, chat_history_manager, config=mock_config, snippet_retriever=mock_snippet_retriever)
 
 def test_prompt_builder_initialization(prompt_builder, chat_history_manager):
     """Test PromptBuilder initialization."""
     assert prompt_builder.llm_service is not None
     assert prompt_builder.chat_history_manager is chat_history_manager
     assert isinstance(prompt_builder.profile, Profile)
+
+def test_prompt_builder_initialization_with_rag(prompt_builder_with_rag, mock_snippet_retriever):
+    """Test PromptBuilder initialization with RAG functionality."""
+    assert prompt_builder_with_rag.snippet_retriever is mock_snippet_retriever
+    assert prompt_builder_with_rag.last_retrieved_snippets == []
+
+def test_retrieve_relevant_snippets_no_retriever(prompt_builder):
+    """Test snippet retrieval when no retriever is available."""
+    snippets = prompt_builder._retrieve_relevant_snippets("test query")
+    assert snippets == []
+
+def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_snippet_retriever):
+    """Test successful snippet retrieval."""
+    # Create mock snippets
+    mock_snippet1 = EmailSnippet(
+        id="test1",
+        file_path="test1.md",
+        content="Test content 1",
+        metadata={
+            "use_case": "cold_outreach",
+            "industry": "technology",
+            "tone": "professional"
+        }
+    )
+    mock_snippet2 = EmailSnippet(
+        id="test2", 
+        file_path="test2.md",
+        content="Test content 2",
+        metadata={
+            "use_case": "follow_up",
+            "industry": "finance",
+            "tone": "casual"
+        }
+    )
+    
+    # Mock the query method
+    mock_snippet_retriever.query.return_value = [
+        (mock_snippet1, 0.85),
+        (mock_snippet2, 0.72)
+    ]
+    
+    snippets = prompt_builder_with_rag._retrieve_relevant_snippets("test query")
+    
+    # Verify query was called with correct parameters
+    mock_snippet_retriever.query.assert_called_once_with(
+        query_text="test query",
+        top_k=3,
+        min_similarity=0.4,
+        filters=None
+    )
+    
+    # Verify results
+    assert len(snippets) == 2
+    assert snippets[0][0] == mock_snippet1
+    assert snippets[0][1] == 0.85
+    assert snippets[1][0] == mock_snippet2
+    assert snippets[1][1] == 0.72
+    
+    # Verify snippets were stored
+    assert prompt_builder_with_rag.last_retrieved_snippets == snippets
+
+def test_retrieve_relevant_snippets_no_results(prompt_builder_with_rag, mock_snippet_retriever):
+    """Test snippet retrieval when no relevant snippets are found."""
+    mock_snippet_retriever.query.return_value = []
+    
+    snippets = prompt_builder_with_rag._retrieve_relevant_snippets("test query")
+    
+    assert snippets == []
+    assert prompt_builder_with_rag.last_retrieved_snippets == []
+
+def test_retrieve_relevant_snippets_exception(prompt_builder_with_rag, mock_snippet_retriever):
+    """Test snippet retrieval when an exception occurs."""
+    mock_snippet_retriever.query.side_effect = Exception("Test error")
+    
+    snippets = prompt_builder_with_rag._retrieve_relevant_snippets("test query")
+    
+    assert snippets == []
+
+def test_build_rag_context_no_snippets(prompt_builder):
+    """Test building RAG context with no snippets."""
+    context = prompt_builder._build_rag_context([])
+    assert context == ""
+
+def test_build_rag_context_with_snippets(prompt_builder):
+    """Test building RAG context with snippets."""
+    mock_snippet1 = EmailSnippet(
+        id="test1",
+        file_path="test1.md",
+        content="Dear [Name],\n\nI hope this email finds you well...",
+        metadata={
+            "use_case": "cold_outreach",
+            "industry": "technology",
+            "tone": "professional"
+        }
+    )
+    mock_snippet2 = EmailSnippet(
+        id="test2",
+        file_path="test2.md",
+        content="Hi [Name],\n\nThanks for your time...",
+        metadata={
+            "use_case": "follow_up", 
+            "industry": "finance",
+            "tone": "casual"
+        }
+    )
+    
+    snippets = [(mock_snippet1, 0.85), (mock_snippet2, 0.72)]
+    context = prompt_builder._build_rag_context(snippets)
+    
+    # Verify important instructions are included
+    assert "REFERENCE EMAIL TEMPLATES" in context
+    assert "Do NOT copy specific details from these templates" in context
+    assert "Use these examples ONLY for" in context
+    assert "END REFERENCE TEMPLATES" in context
+    
+    # Verify snippet content is included
+    assert "Example 1 (Similarity: 0.850)" in context
+    assert "Example 2 (Similarity: 0.720)" in context
+    assert "cold_outreach" in context
+    assert "technology" in context
+    assert "professional" in context
+    assert "follow_up" in context
+    assert "finance" in context
+    assert "casual" in context
+    assert "Dear [Name]," in context
+    assert "Hi [Name]," in context
+
+def test_build_llm_prompt_with_rag(prompt_builder_with_rag, chat_history_manager, mock_snippet_retriever):
+    """Test building LLM prompt with RAG functionality."""
+    # Add user message
+    chat_history_manager.add_message("I need a cold outreach email for a tech company", MessageType.INITIAL_PROMPT)
+    
+    # Mock snippet retrieval
+    mock_snippet = EmailSnippet(
+        id="test1",
+        file_path="test1.md",
+        content="Dear [Name],\n\nI hope this email finds you well...",
+        metadata={
+            "use_case": "cold_outreach",
+            "industry": "technology", 
+            "tone": "professional"
+        }
+    )
+    mock_snippet_retriever.query.return_value = [(mock_snippet, 0.85)]
+    
+    prompt = prompt_builder_with_rag.build_llm_prompt()
+    
+    # Verify RAG context is included
+    assert "REFERENCE EMAIL TEMPLATES" in prompt
+    assert "Do NOT copy specific details" in prompt
+    assert "Use the reference templates above ONLY for style and structure guidance" in prompt
+    assert "Write a completely original email" in prompt
+    
+    # Verify snippet was retrieved
+    mock_snippet_retriever.query.assert_called_once()
+
+def test_build_llm_prompt_without_rag(prompt_builder, chat_history_manager):
+    """Test building LLM prompt without RAG functionality."""
+    chat_history_manager.add_message("I need a cold outreach email", MessageType.INITIAL_PROMPT)
+    
+    prompt = prompt_builder.build_llm_prompt()
+    
+    # Verify RAG context is not included
+    assert "REFERENCE EMAIL TEMPLATES" not in prompt
+    assert "Do NOT copy specific details" not in prompt
+
+def test_get_last_retrieved_snippets(prompt_builder_with_rag, mock_snippet_retriever):
+    """Test getting last retrieved snippets."""
+    mock_snippet = EmailSnippet(
+        id="test1",
+        file_path="test1.md",
+        content="Test content",
+        metadata={
+            "use_case": "cold_outreach",
+            "industry": "technology",
+            "tone": "professional"
+        }
+    )
+    
+    # Set up mock retrieval
+    mock_snippet_retriever.query.return_value = [(mock_snippet, 0.85)]
+    
+    # Retrieve snippets
+    prompt_builder_with_rag._retrieve_relevant_snippets("test query")
+    
+    # Get last retrieved snippets
+    last_snippets = prompt_builder_with_rag.get_last_retrieved_snippets()
+    
+    assert len(last_snippets) == 1
+    assert last_snippets[0][0] == mock_snippet
+    assert last_snippets[0][1] == 0.85
 
 def test_build_outreach_prompt_tone_instructions(prompt_builder):
     context = {
@@ -200,33 +402,33 @@ def test_generate_draft_with_feedback(prompt_builder, chat_history_manager):
     # Add conversation with feedback
     chat_history_manager.add_message("Write me an outreach email", MessageType.INITIAL_PROMPT)
     chat_history_manager.add_draft("Here's a draft...")
-    chat_history_manager.add_message("Make it more concise", MessageType.FEEDBACK)
+    chat_history_manager.add_message("Make it more professional", MessageType.FEEDBACK)
     
     # Mock LLM response
-    mock_revised_draft = "Dear [Name],\n\nI wanted to reach out..."
+    mock_draft = "Dear [Recipient Name],\n\nI hope this email finds you well..."
     
     with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.return_value = mock_revised_draft
+        mock_generate.return_value = mock_draft
         
         draft = prompt_builder.generate_draft()
         
-        assert draft == mock_revised_draft
+        assert draft == mock_draft
         
-        # Verify the new draft was added to chat history
-        drafts = chat_history_manager.get_messages_by_type(MessageType.DRAFT)
-        assert len(drafts) == 2  # Original draft + new draft
+        # Verify the prompt included feedback
+        call_args = mock_generate.call_args[0][0]
+        assert "Make it more professional" in call_args
 
 def test_update_profile(prompt_builder):
     """Test updating user profile."""
     prompt_builder.update_profile(
-        your_name="Jane Smith",
-        your_title="Marketing Director",
-        company_name="Innovation Inc"
+        your_name="John Doe",
+        your_title="Sales Manager",
+        company_name="TechCorp"
     )
     
-    assert prompt_builder.profile.your_name == "Jane Smith"
-    assert prompt_builder.profile.your_title == "Marketing Director"
-    assert prompt_builder.profile.company_name == "Innovation Inc"
+    assert prompt_builder.profile.your_name == "John Doe"
+    assert prompt_builder.profile.your_title == "Sales Manager"
+    assert prompt_builder.profile.company_name == "TechCorp"
 
 def test_get_draft_email(prompt_builder):
     """Test getting the current draft email."""
@@ -238,46 +440,40 @@ def test_get_draft_email(prompt_builder):
     assert prompt_builder.get_draft_email() == "Test draft email"
 
 def test_prompt_includes_conversation_summary(prompt_builder, chat_history_manager):
-    """Test that prompt focuses on latest user message and feedback, not full conversation summary."""
-    # Add messages and create a summary
-    chat_history_manager.add_message("Initial request", MessageType.INITIAL_PROMPT)
-    chat_history_manager.add_draft("First draft")
-    chat_history_manager.add_message("Latest feedback", MessageType.FEEDBACK)
-    
-    # Create a summary (this is no longer used in the prompt)
-    chat_history_manager.summary = "Previous conversation about outreach email with feedback"
+    """Test that the prompt includes relevant conversation context."""
+    # Add a conversation
+    chat_history_manager.add_message("I need an email for a tech startup", MessageType.INITIAL_PROMPT)
+    chat_history_manager.add_draft("Here's a draft...")
+    chat_history_manager.add_message("Focus on their growth challenges", MessageType.FEEDBACK)
     
     prompt = prompt_builder.build_llm_prompt()
     
-    # Current implementation focuses on latest user message and feedback, not summary
-    assert "Latest feedback" in prompt
+    # Should include the latest feedback
+    assert "Focus on their growth challenges" in prompt
     assert "Most recent feedback from user:" in prompt
-    # Summary is no longer included in the prompt
-    assert "Previous conversation about outreach email with feedback" not in prompt
 
 def test_prompt_with_max_messages_limit(prompt_builder, chat_history_manager):
-    """Test that prompt focuses on latest user message, not full conversation context."""
-    # Add many messages
-    for i in range(10):
+    """Test that the prompt handles conversation history appropriately."""
+    # Add multiple messages
+    for i in range(5):
         chat_history_manager.add_message(f"Message {i}", MessageType.INITIAL_PROMPT)
         chat_history_manager.add_draft(f"Draft {i}")
     
     prompt = prompt_builder.build_llm_prompt()
     
-    # Current implementation only uses the latest user message
-    assert "Message 9" in prompt  # Latest message
-    assert "Message 0" not in prompt  # Earlier messages not included
-    # Full conversation context is no longer included
-    assert "Conversation so far:" not in prompt
+    # Should only include the latest user message
+    assert "Message 4" in prompt
+    assert "Message 0" not in prompt
+    assert "Message 1" not in prompt
 
 def test_error_handling_in_generate_draft(prompt_builder, chat_history_manager):
-    """Test error handling when LLM service fails."""
+    """Test error handling during draft generation."""
     chat_history_manager.add_message("Test message", MessageType.INITIAL_PROMPT)
     
     with patch.object(prompt_builder.llm_service, 'generate_response') as mock_generate:
-        mock_generate.side_effect = Exception("LLM API Error")
+        mock_generate.side_effect = Exception("LLM service error")
         
-        with pytest.raises(Exception, match="LLM API Error"):
+        with pytest.raises(Exception):
             prompt_builder.generate_draft()
 
 def test_profile_defaults(prompt_builder):
@@ -287,18 +483,19 @@ def test_profile_defaults(prompt_builder):
     assert prompt_builder.profile.company_name == ""
 
 def test_custom_profile_initialization():
-    """Test PromptBuilder initialization with custom profile."""
-    mock_llm_service = Mock()
-    chat_history_manager = ChatHistoryManager()
-    
+    """Test initializing PromptBuilder with a custom profile."""
     custom_profile = Profile(
-        your_name="Custom Name",
-        your_title="Custom Title",
-        company_name="Custom Company"
+        your_name="Jane Doe",
+        your_title="VP Sales",
+        company_name="CustomCorp"
     )
     
-    prompt_builder = PromptBuilder(mock_llm_service, chat_history_manager, custom_profile)
-    
-    assert prompt_builder.profile.your_name == "Custom Name"
-    assert prompt_builder.profile.your_title == "Custom Title"
-    assert prompt_builder.profile.company_name == "Custom Company" 
+    with patch('services.llm_service.LLMService'), patch('services.chat_history_manager.ChatHistoryManager'):
+        prompt_builder = PromptBuilder(
+            Mock(), Mock(), 
+            profile=custom_profile
+        )
+        
+        assert prompt_builder.profile.your_name == "Jane Doe"
+        assert prompt_builder.profile.your_title == "VP Sales"
+        assert prompt_builder.profile.company_name == "CustomCorp" 

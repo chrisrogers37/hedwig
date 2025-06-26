@@ -32,3 +32,4 @@ venv/
 # Project planning documents
 architecture.md
 tasks.md
+rag_feature_overview.md
