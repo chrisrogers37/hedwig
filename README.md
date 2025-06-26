@@ -149,4 +149,28 @@ The new interface provides a much better user experience with natural conversati
 - Email templates and variations
 - A/B testing suggestions
 - Integration with email clients
-- Team collaboration features 
+- Team collaboration features
+
+## 🗺️ ROADMAP
+
+### RAG System Enhancements
+
+#### High Priority (Complete the MVP)
+- **Template Visibility**: Add sidebar showing "Relevant Email Templates Used" in the UI
+- **RAG Toggle**: Add UI toggle to disable/enable RAG functionality
+- **Template Preview**: Let users see the retrieved templates before generation
+
+#### Medium Priority (Enhance UX)
+- **Template Rating**: Let users rate how helpful templates were
+- **Manual Template Selection**: Allow users to choose specific templates from UI
+- **Template Categories**: Organize templates by industry/use case in the interface
+
+#### Low Priority (Future Enhancements)
+- **FAISS Integration**: Replace in-memory storage with FAISS for larger template libraries
+- **User Memory**: Add user-specific template memory when authentication is implemented
+- **Advanced Interpolation**: Add "copy structure but rephrase" feature for template adaptation
+
+### Technical Improvements
+- **Performance Optimization**: Implement caching for frequently used templates
+- **Template Analytics**: Track which templates are most effective
+- **Dynamic Thresholds**: Industry-specific similarity thresholds for better template matching 
