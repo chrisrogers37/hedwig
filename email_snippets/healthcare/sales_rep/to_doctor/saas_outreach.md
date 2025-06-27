@@ -5,7 +5,7 @@ tone: "Professional"
 industry: "Healthcare"
 role: "Sales Rep"
 difficulty: "Intermediate"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.68
 notes: "Effective for healthcare SaaS companies targeting medical professionals"

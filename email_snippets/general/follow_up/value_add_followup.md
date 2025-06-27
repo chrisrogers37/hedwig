@@ -4,7 +4,7 @@ use_case: "Follow Up"
 tone: "Casual"
 industry: "General"
 difficulty: "Beginner"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.78
 notes: "Focuses on providing value rather than just following up"

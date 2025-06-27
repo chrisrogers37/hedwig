@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo script for the OutboundOwl chatbot interface.
+Demo script for the Hedwig chatbot interface.
 This demonstrates the conversational flow without requiring Streamlit.
 """
 
@@ -18,7 +18,7 @@ from services.prompt_builder import PromptBuilder, Profile
 from unittest.mock import Mock, patch
 
 def run_demo():
-    print("Welcome to OutboundOwl Demo Chatbot!")
+    print("Welcome to Hedwig Demo Chatbot!")
     profile = Profile()
     prompt_builder = PromptBuilder(None, profile)
     while True:
@@ -27,9 +27,9 @@ def run_demo():
         prompt_builder.add_message(user_input)
         draft = prompt_builder.get_draft_email()
         if draft:
-            print(f"Owl (draft email):\n{draft}")
+            print(f"Hedwig (draft email):\n{draft}")
         else:
-            print("Owl: I'm not sure how to respond. Please try again.")
+            print("Hedwig: I'm not sure how to respond. Please try again.")
         # Optionally allow profile editing
         if input("Edit profile? (y/N): ").strip().lower() == 'y':
             profile.your_name = input("Your Name: ")

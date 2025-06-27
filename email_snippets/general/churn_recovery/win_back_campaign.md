@@ -4,7 +4,7 @@ use_case: "Churn Recovery"
 tone: "Professional"
 industry: "General"
 difficulty: "Intermediate"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.72
 notes: "Approach with empathy and focus on understanding the customer's needs"

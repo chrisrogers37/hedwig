@@ -5,7 +5,7 @@ tone: "Casual"
 industry: "Entertainment"
 role: "DJ"
 difficulty: "Beginner"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.75
 notes: "Effective for DJs reaching out to venues for sets"

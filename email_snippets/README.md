@@ -25,7 +25,7 @@ use_case: "Cold Intro"
 tone: "Professional"
 industry: "Tech"
 difficulty: "Beginner"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.85
 notes: "Effective for B2B SaaS companies"

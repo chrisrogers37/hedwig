@@ -4,7 +4,7 @@ use_case: "Introduction"
 tone: "Friendly"
 industry: "General"
 difficulty: "Beginner"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.85
 notes: "Great for post-conference networking and relationship building"

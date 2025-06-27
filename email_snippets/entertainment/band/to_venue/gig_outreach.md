@@ -5,7 +5,7 @@ tone: "Casual"
 industry: "Entertainment"
 role: "Band"
 difficulty: "Beginner"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.74
 notes: "Effective for bands reaching out to venues for live gigs"

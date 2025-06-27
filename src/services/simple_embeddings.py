@@ -1,5 +1,5 @@
 """
-Simple Embedding Service for OutboundOwl
+Simple Embedding Service for Hedwig
 
 Provides lightweight semantic embeddings using a simple but effective approach
 that doesn't require heavy dependencies like PyTorch.

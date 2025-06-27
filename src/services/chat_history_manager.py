@@ -1,5 +1,5 @@
 """
-Chat History Manager for OutboundOwl
+Chat History Manager for Hedwig
 
 Manages conversation history including drafts, feedback, and responses.
 Supports summarization for token optimization and context management.

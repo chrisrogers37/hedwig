@@ -4,7 +4,7 @@ use_case: "Partnership"
 tone: "Professional"
 industry: "General"
 difficulty: "Advanced"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.68
 notes: "Requires thorough research and clear value proposition for both parties"

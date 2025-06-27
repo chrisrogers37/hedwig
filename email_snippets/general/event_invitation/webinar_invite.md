@@ -4,7 +4,7 @@ use_case: "Event Invitation"
 tone: "Casual"
 industry: "General"
 difficulty: "Beginner"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.75
 notes: "Focus on value and education rather than sales pitch"
