@@ -16,7 +16,7 @@ class TestLoggingUtils:
         message = "Test message"
         log(message)
         
-        mock_print.assert_called_once_with("[OutboundOwl] Test message")
+        mock_print.assert_called_once_with("[Hedwig] Test message")
     
     @patch('builtins.print')
     def test_log_custom_prefix(self, mock_print):
@@ -33,7 +33,7 @@ class TestLoggingUtils:
         message = ""
         log(message)
         
-        mock_print.assert_called_once_with("[OutboundOwl] ")
+        mock_print.assert_called_once_with("[Hedwig] ")
     
     @patch('builtins.print')
     def test_log_special_characters(self, mock_print):
@@ -41,7 +41,7 @@ class TestLoggingUtils:
         message = "Message with special chars: !@#$%^&*()"
         log(message)
         
-        mock_print.assert_called_once_with("[OutboundOwl] Message with special chars: !@#$%^&*()")
+        mock_print.assert_called_once_with("[Hedwig] Message with special chars: !@#$%^&*()")
     
     @patch('builtins.print')
     def test_log_multiline_message(self, mock_print):
@@ -49,7 +49,7 @@ class TestLoggingUtils:
         message = "Line 1\nLine 2\nLine 3"
         log(message)
         
-        mock_print.assert_called_once_with("[OutboundOwl] Line 1\nLine 2\nLine 3")
+        mock_print.assert_called_once_with("[Hedwig] Line 1\nLine 2\nLine 3")
     
     @patch('builtins.print')
     def test_log_numeric_message(self, mock_print):
@@ -57,7 +57,7 @@ class TestLoggingUtils:
         message = 123
         log(message)
         
-        mock_print.assert_called_once_with("[OutboundOwl] 123")
+        mock_print.assert_called_once_with("[Hedwig] 123")
     
     @patch('builtins.print')
     def test_log_empty_prefix(self, mock_print):
@@ -76,9 +76,9 @@ class TestLoggingUtils:
         log("Third message")
         
         expected_calls = [
-            (("[OutboundOwl] First message",),),
+            (("[Hedwig] First message",),),
             (("[TestPrefix] Second message",),),
-            (("[OutboundOwl] Third message",),)
+            (("[Hedwig] Third message",),)
         ]
         
         assert mock_print.call_args_list == expected_calls 

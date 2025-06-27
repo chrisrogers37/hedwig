@@ -1,8 +1,8 @@
-# 🦉 OutboundOwl - AI Email Assistant
+# 🦉 Hedwig - AI Email Assistant
 
 ## Overview
 
-OutboundOwl features a **conversational chatbot interface** that makes creating personalized sales emails as easy as having a conversation. No more filling out forms - just chat naturally with the AI!
+Hedwig features a **conversational chatbot interface** that makes creating personalized sales emails as easy as having a conversation. No more filling out forms - just chat naturally with the AI!
 
 ## 🚀 Quick Start
 

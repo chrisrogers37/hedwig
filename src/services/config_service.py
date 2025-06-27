@@ -5,7 +5,7 @@ import json
 
 class AppConfig:
     """
-    Centralized configuration service for OutboundOwl.
+    Centralized configuration service for Hedwig.
     Loads settings from environment variables, optional config file, and allows runtime updates.
     Currently supports OpenAI, with extensible structure for additional providers.
     """

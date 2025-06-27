@@ -30,20 +30,24 @@ def test_initialize_services_with_valid_config():
         with patch('app_chatbot.LLMService') as mock_llm_class:
             with patch('app_chatbot.ChatHistoryManager') as mock_chat_class:
                 with patch('app_chatbot.PromptBuilder') as mock_prompt_class:
-                    mock_llm = Mock()
-                    mock_chat = Mock()
-                    mock_prompt = Mock()
-                    mock_llm_class.return_value = mock_llm
-                    mock_chat_class.return_value = mock_chat
-                    mock_prompt_class.return_value = mock_prompt
-                    
-                    import app_chatbot
-                    config, llm_service, chat_history_manager, prompt_builder = app_chatbot.initialize_services()
-                    
-                    assert config is not None
-                    assert llm_service is not None
-                    assert chat_history_manager is not None
-                    assert prompt_builder is not None
+                    with patch('app_chatbot.SnippetRetriever') as mock_snippet_class:
+                        mock_llm = Mock()
+                        mock_chat = Mock()
+                        mock_prompt = Mock()
+                        mock_snippet = Mock()
+                        mock_llm_class.return_value = mock_llm
+                        mock_chat_class.return_value = mock_chat
+                        mock_prompt_class.return_value = mock_prompt
+                        mock_snippet_class.return_value = mock_snippet
+                        
+                        import app_chatbot
+                        config, llm_service, chat_history_manager, prompt_builder, snippet_retriever = app_chatbot.initialize_services()
+                        
+                        assert config is not None
+                        assert llm_service is not None
+                        assert chat_history_manager is not None
+                        assert prompt_builder is not None
+                        assert snippet_retriever is not None
 
 def test_initialize_services_with_invalid_config():
     """Test service initialization with invalid configuration."""
@@ -56,9 +60,10 @@ def test_initialize_services_with_invalid_config():
         mock_config_class.return_value = mock_config
         
         import app_chatbot
-        config, llm_service, chat_history_manager, prompt_builder = app_chatbot.initialize_services()
+        config, llm_service, chat_history_manager, prompt_builder, snippet_retriever = app_chatbot.initialize_services()
         
         assert config is None
         assert llm_service is None
         assert chat_history_manager is None
-        assert prompt_builder is None 
+        assert prompt_builder is None
+        assert snippet_retriever is None 

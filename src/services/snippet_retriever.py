@@ -1,5 +1,5 @@
 """
-Snippet Retriever Service for OutboundOwl
+Snippet Retriever Service for Hedwig
 
 Provides semantic search and retrieval of email templates for RAG (Retrieval-Augmented Generation).
 Uses SimpleEmbeddings (TF-IDF + SVD) for semantic search, with fallback to basic TF-IDF.

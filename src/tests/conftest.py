@@ -1,5 +1,5 @@
 """
-Pytest configuration for OutboundOwl tests
+Pytest configuration for Hedwig tests
 """
 
 import sys

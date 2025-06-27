@@ -23,7 +23,7 @@ def mask_key(key):
 
 # Page configuration
 st.set_page_config(
-    page_title="OutboundOwl - AI Email Assistant",
+    page_title="Hedwig - AI Email Assistant",
     page_icon="🦉",
     layout="wide"
 )
@@ -107,7 +107,7 @@ def render_configuration_sidebar(config):
 
 def render_chat_interface(chat_history_manager, prompt_builder):
     """Render the main chat interface."""
-    st.title("OutboundOwl: Generate Outreach Emails For Any Use Case")
+    st.title("Hedwig: Generate Outreach Emails For Any Use Case")
     st.markdown("Chat with me to create personalized outreach emails! Just describe your goal and I'll generate a draft.")
 
     # Get services from session state (they should already be there from main())
@@ -117,7 +117,7 @@ def render_chat_interface(chat_history_manager, prompt_builder):
     # Add a default assistant message at initialization if history is empty
     if not chat_history_manager.messages:
         default_msg = (
-            "Hi! I'm OutboundOwl, your AI email assistant. What kind of outreach email would you like to create today? "
+            "Hi! I'm Hedwig, your AI email assistant. What kind of outreach email would you like to create today? "
             "Just describe your goal, and I'll help you draft the perfect message."
         )
         chat_history_manager.add_draft(default_msg)
@@ -137,7 +137,7 @@ def render_chat_interface(chat_history_manager, prompt_builder):
 
     # Only add a new message if user_input is present
     if user_input:
-        log(f"User message: {user_input}", prefix="OutboundOwl")
+        log(f"User message: {user_input}", prefix="Hedwig")
         chat_history_manager.add_message(user_input, MessageType.INITIAL_PROMPT)
         with st.chat_message("user"):
             st.markdown(user_input)
@@ -161,6 +161,7 @@ def render_chat_interface(chat_history_manager, prompt_builder):
                             st.success("✅ Email copied to clipboard!")
                         except Exception as e:
                             st.error(f"❌ Failed to copy: {e}")
+                            log(f"ERROR copying to clipboard: {e}", prefix="Hedwig")
                 with col2:
                     if st.button("🔄 Regenerate", key="regenerate_btn"):
                         st.session_state['regenerate'] = True
@@ -169,7 +170,7 @@ def render_chat_interface(chat_history_manager, prompt_builder):
                 st.chat_message('assistant').write("I'm not sure how to respond. Please try again.")
         except Exception as e:
             st.error(f"❌ Error generating draft: {e}")
-            log(f"ERROR generating draft: {e}", prefix="OutboundOwl")
+            log(f"ERROR generating draft: {e}", prefix="Hedwig")
         st.session_state['regenerate'] = False
 
 def render_email_actions(email_content):
@@ -186,7 +187,7 @@ def render_email_actions(email_content):
                 st.success("✅ Email copied to clipboard!")
             except Exception as e:
                 st.error(f"❌ Failed to copy: {e}")
-                log(f"ERROR copying to clipboard: {e}", prefix="OutboundOwl")
+                log(f"ERROR copying to clipboard: {e}", prefix="Hedwig")
     
     with col2:
         if st.button("🔄 Regenerate"):
@@ -255,7 +256,7 @@ def main():
                 
         except Exception as e:
             st.error(f"❌ Failed to reinitialize services: {e}")
-            log(f"ERROR reinitializing services: {e}\n{traceback.format_exc()}", prefix="OutboundOwl")
+            log(f"ERROR reinitializing services: {e}\n{traceback.format_exc()}", prefix="Hedwig")
             st.stop()
     
     # Render conversation stats

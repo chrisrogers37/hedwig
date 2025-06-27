@@ -5,7 +5,7 @@ tone: "Professional"
 industry: "Tech"
 role: "Sales Rep"
 difficulty: "Beginner"
-author: "OutboundOwl Team"
+author: "Hedwig Team"
 date_created: "2024-01-01"
 success_rate: 0.82
 notes: "Effective for B2B SaaS companies targeting mid-market businesses"
