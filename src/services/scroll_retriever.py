@@ -1,5 +1,5 @@
 """
-Snippet Retriever Service for Hedwig
+Scroll Retriever Service for Hedwig
 
 Provides semantic search and retrieval of email templates for RAG (Retrieval-Augmented Generation).
 Uses SimpleEmbeddings (TF-IDF + SVD) for semantic search, with fallback to basic TF-IDF.
@@ -73,11 +73,11 @@ class EmailSnippet:
         return self.metadata.get('success_rate', 0.0)
 
 
-class SnippetRetriever:
+class ScrollRetriever:
     """
     Retrieves relevant email snippets using semantic search.
     
-    Loads email templates from the email_snippets directory, generates embeddings,
+    Loads email templates from the scrolls directory, generates embeddings,
     and provides semantic search functionality for RAG implementation.
     """
     
@@ -99,7 +99,7 @@ class SnippetRetriever:
         """
         if snippets_dir is None:
             # Always resolve relative to project root (parent of src)
-            snippets_dir = Path(__file__).parent.parent.parent / 'email_snippets'
+            snippets_dir = Path(__file__).parent.parent.parent / 'scrolls'
         else:
             snippets_dir = Path(snippets_dir)
         self.snippets_dir = snippets_dir
@@ -116,7 +116,7 @@ class SnippetRetriever:
         self.embeddings: Optional[np.ndarray] = None
         self._loaded = False
         
-        log(f"Initialized SnippetRetriever with {'sentence-transformers' if self.use_sentence_transformers else 'SimpleEmbeddings'}")
+        log(f"Initialized ScrollRetriever with {'sentence-transformers' if self.use_sentence_transformers else 'SimpleEmbeddings'}")
     
     def load_snippets(self) -> int:
         """

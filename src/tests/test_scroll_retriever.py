@@ -1,5 +1,5 @@
 """
-Tests for SnippetRetriever service.
+Tests for ScrollRetriever service.
 """
 
 import pytest
@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 
-from services.snippet_retriever import SnippetRetriever, EmailSnippet
+from services.scroll_retriever import ScrollRetriever, EmailSnippet
 
 
 class TestEmailSnippet:
@@ -82,14 +82,14 @@ class TestEmailSnippet:
         assert snippet.success_rate == 0.0
 
 
-class TestSnippetRetriever:
-    """Test SnippetRetriever class."""
+class TestScrollRetriever:
+    """Test ScrollRetriever class."""
     
     @pytest.fixture
     def temp_snippets_dir(self):
         """Create a temporary directory with test snippets."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            snippets_dir = Path(temp_dir) / "email_snippets"
+            snippets_dir = Path(temp_dir) / "scrolls"
             snippets_dir.mkdir()
             
             # Create test snippet
@@ -119,11 +119,11 @@ Best regards,
             
             yield str(snippets_dir)
     
-    def test_snippet_retriever_initialization(self):
-        """Test SnippetRetriever initialization."""
-        retriever = SnippetRetriever()
+    def test_scroll_retriever_initialization(self):
+        """Test ScrollRetriever initialization."""
+        retriever = ScrollRetriever()
         
-        assert retriever.snippets_dir.name == "email_snippets"
+        assert retriever.snippets_dir.name == "scrolls"
         assert retriever.embedding_model_name == "all-MiniLM-L6-v2"
         assert retriever.cache_embeddings is True
         assert retriever.max_snippets == 1000
@@ -131,9 +131,9 @@ Best regards,
         assert retriever.embeddings is None
         assert retriever._loaded is False
     
-    def test_snippet_retriever_custom_initialization(self):
-        """Test SnippetRetriever with custom parameters."""
-        retriever = SnippetRetriever(
+    def test_scroll_retriever_custom_initialization(self):
+        """Test ScrollRetriever with custom parameters."""
+        retriever = ScrollRetriever(
             snippets_dir="custom_dir",
             embedding_model="custom-model",
             cache_embeddings=False,
@@ -147,7 +147,7 @@ Best regards,
     
     def test_load_snippets_success(self, temp_snippets_dir):
         """Test successful snippet loading."""
-        retriever = SnippetRetriever(snippets_dir=temp_snippets_dir)
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
         
         # Mock the embedding generation to avoid downloading models
         with patch.object(retriever, '_generate_embeddings'):
@@ -158,7 +158,7 @@ Best regards,
         assert retriever._loaded is True
         
         snippet = retriever.snippets[0]
-        assert snippet.id == "email_snippets_test_snippet"
+        assert snippet.id == "scrolls_test_snippet"
         assert "Hi {{recipient_name}}" in snippet.content
         assert snippet.tags == ["test", "sample", "professional"]
         assert snippet.use_case == "Test Case"
@@ -169,7 +169,7 @@ Best regards,
     def test_load_snippets_empty_directory(self):
         """Test loading snippets from empty directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            retriever = SnippetRetriever(snippets_dir=temp_dir)
+            retriever = ScrollRetriever(snippets_dir=temp_dir)
             count = retriever.load_snippets()
             
             assert count == 0
@@ -192,7 +192,7 @@ Test content
         with open(invalid_file, 'w') as f:
             f.write(invalid_snippet)
         
-        retriever = SnippetRetriever(snippets_dir=temp_snippets_dir)
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
         
         with patch.object(retriever, '_generate_embeddings'):
             count = retriever.load_snippets()
@@ -203,7 +203,7 @@ Test content
     
     def test_parse_frontmatter_valid(self):
         """Test parsing valid YAML frontmatter."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         content = """---
 tags: ["test", "sample"]
@@ -227,7 +227,7 @@ Email content here.
     
     def test_parse_frontmatter_no_frontmatter(self):
         """Test parsing content without frontmatter."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         content = "Just plain content without frontmatter."
         
@@ -238,7 +238,7 @@ Email content here.
     
     def test_parse_frontmatter_invalid_yaml(self):
         """Test parsing invalid YAML frontmatter."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         content = """---
 tags: ["unclosed list
@@ -255,7 +255,7 @@ Content
     
     def test_validate_metadata_valid(self):
         """Test validation of valid metadata."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         metadata = {
             'tags': ['test'],
@@ -269,7 +269,7 @@ Content
     
     def test_validate_metadata_missing_fields(self):
         """Test validation of metadata with missing fields."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         metadata = {
             'tags': ['test'],
@@ -281,7 +281,7 @@ Content
     
     def test_validate_metadata_invalid_tags(self):
         """Test validation of metadata with invalid tags."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         metadata = {
             'tags': 'not_a_list',  # Should be a list
@@ -297,7 +297,7 @@ Content
     
     def test_generate_embeddings(self):
         """Test embedding generation."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         # Create test snippets
         snippet1 = EmailSnippet(
@@ -316,7 +316,7 @@ Content
         retriever.snippets = [snippet1, snippet2]
         
         # Patch SimpleEmbeddings to avoid n_components error
-        with patch('services.snippet_retriever.SimpleEmbeddings') as MockEmb:
+        with patch('services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
             mock_instance.fit.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever._generate_simple_embeddings()
@@ -328,7 +328,7 @@ Content
     
     def test_query_with_embeddings(self):
         """Test querying with embeddings."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         # Create test snippets
         snippet1 = EmailSnippet(
@@ -348,7 +348,7 @@ Content
         retriever._loaded = True
         
         # Patch SimpleEmbeddings to avoid n_components error
-        with patch('services.snippet_retriever.SimpleEmbeddings') as MockEmb:
+        with patch('services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
             mock_instance.fit.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
             mock_instance.transform.return_value = np.array([[0.2, 0.3]])
@@ -365,7 +365,7 @@ Content
     
     def test_query_with_filters(self, temp_snippets_dir):
         """Test querying with filters."""
-        retriever = SnippetRetriever(snippets_dir=temp_snippets_dir)
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
         
         with patch.object(retriever, '_generate_embeddings'):
             retriever.load_snippets()
@@ -386,7 +386,7 @@ Content
     
     def test_get_snippets_by_category(self, temp_snippets_dir):
         """Test getting snippets by category."""
-        retriever = SnippetRetriever(snippets_dir=temp_snippets_dir)
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
         
         with patch.object(retriever, '_generate_embeddings'):
             retriever.load_snippets()
@@ -397,14 +397,14 @@ Content
     
     def test_get_snippet_by_id(self, temp_snippets_dir):
         """Test getting snippet by ID."""
-        retriever = SnippetRetriever(snippets_dir=temp_snippets_dir)
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
         
         with patch.object(retriever, '_generate_embeddings'):
             retriever.load_snippets()
         
-        snippet = retriever.get_snippet_by_id('email_snippets_test_snippet')
+        snippet = retriever.get_snippet_by_id('scrolls_test_snippet')
         assert snippet is not None
-        assert snippet.id == 'email_snippets_test_snippet'
+        assert snippet.id == 'scrolls_test_snippet'
         
         # Test non-existent ID
         snippet = retriever.get_snippet_by_id('non_existent')
@@ -412,7 +412,7 @@ Content
     
     def test_get_statistics(self, temp_snippets_dir):
         """Test getting snippet statistics."""
-        retriever = SnippetRetriever(snippets_dir=temp_snippets_dir)
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
         
         with patch.object(retriever, '_generate_embeddings'):
             retriever.load_snippets()
@@ -427,7 +427,7 @@ Content
     
     def test_matches_filters(self):
         """Test filter matching logic."""
-        retriever = SnippetRetriever()
+        retriever = ScrollRetriever()
         
         snippet = EmailSnippet(
             id='test',

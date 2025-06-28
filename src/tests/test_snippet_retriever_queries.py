@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-Test script to evaluate SnippetRetriever performance on specific queries.
+Test script to evaluate ScrollRetriever performance on specific queries.
 """
 
 import sys
 import os
 sys.path.append('src')
 
-from services.snippet_retriever import SnippetRetriever
+from services.scroll_retriever import ScrollRetriever
 
 def test_queries():
     """Test the two example queries."""
     
     # Initialize retriever
-    retriever = SnippetRetriever(snippets_dir='email_snippets')
+    retriever = ScrollRetriever(snippets_dir='scrolls')
     loaded_count = retriever.load_snippets()
     print(f"Loaded {loaded_count} snippets")
     print()

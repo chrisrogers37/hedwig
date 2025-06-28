@@ -4,7 +4,7 @@ from services.prompt_builder import PromptBuilder, Profile
 from services.llm_service import LLMService
 from services.config_service import AppConfig
 from services.chat_history_manager import ChatHistoryManager, MessageType
-from services.snippet_retriever import SnippetRetriever, EmailSnippet
+from services.scroll_retriever import ScrollRetriever, EmailSnippet
 
 @pytest.fixture
 def mock_config():
@@ -28,9 +28,9 @@ def chat_history_manager():
     return ChatHistoryManager()
 
 @pytest.fixture
-def mock_snippet_retriever():
-    """Create a mock SnippetRetriever for testing."""
-    return Mock(spec=SnippetRetriever)
+def mock_scroll_retriever():
+    """Create a mock ScrollRetriever for testing."""
+    return Mock(spec=ScrollRetriever)
 
 @pytest.fixture
 def prompt_builder(mock_llm_service, chat_history_manager, mock_config):
@@ -38,9 +38,9 @@ def prompt_builder(mock_llm_service, chat_history_manager, mock_config):
     return PromptBuilder(mock_llm_service, chat_history_manager, config=mock_config)
 
 @pytest.fixture
-def prompt_builder_with_rag(mock_llm_service, chat_history_manager, mock_config, mock_snippet_retriever):
+def prompt_builder_with_rag(mock_llm_service, chat_history_manager, mock_config, mock_scroll_retriever):
     """Create a PromptBuilder instance with RAG functionality for testing."""
-    return PromptBuilder(mock_llm_service, chat_history_manager, config=mock_config, snippet_retriever=mock_snippet_retriever)
+    return PromptBuilder(mock_llm_service, chat_history_manager, config=mock_config, scroll_retriever=mock_scroll_retriever)
 
 def test_prompt_builder_initialization(prompt_builder, chat_history_manager):
     """Test PromptBuilder initialization."""
@@ -48,9 +48,9 @@ def test_prompt_builder_initialization(prompt_builder, chat_history_manager):
     assert prompt_builder.chat_history_manager is chat_history_manager
     assert isinstance(prompt_builder.profile, Profile)
 
-def test_prompt_builder_initialization_with_rag(prompt_builder_with_rag, mock_snippet_retriever):
+def test_prompt_builder_initialization_with_rag(prompt_builder_with_rag, mock_scroll_retriever):
     """Test PromptBuilder initialization with RAG functionality."""
-    assert prompt_builder_with_rag.snippet_retriever is mock_snippet_retriever
+    assert prompt_builder_with_rag.scroll_retriever is mock_scroll_retriever
     assert prompt_builder_with_rag.last_retrieved_snippets == []
 
 def test_retrieve_relevant_snippets_no_retriever(prompt_builder):
@@ -58,7 +58,7 @@ def test_retrieve_relevant_snippets_no_retriever(prompt_builder):
     snippets = prompt_builder._retrieve_relevant_snippets("test query")
     assert snippets == []
 
-def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_snippet_retriever):
+def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_scroll_retriever):
     """Test successful snippet retrieval."""
     # Create mock snippets
     mock_snippet1 = EmailSnippet(
@@ -83,7 +83,7 @@ def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_snippe
     )
     
     # Mock the query method
-    mock_snippet_retriever.query.return_value = [
+    mock_scroll_retriever.query.return_value = [
         (mock_snippet1, 0.85),
         (mock_snippet2, 0.72)
     ]
@@ -91,7 +91,7 @@ def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_snippe
     snippets = prompt_builder_with_rag._retrieve_relevant_snippets("test query")
     
     # Verify query was called with correct parameters
-    mock_snippet_retriever.query.assert_called_once_with(
+    mock_scroll_retriever.query.assert_called_once_with(
         query_text="test query",
         top_k=3,
         min_similarity=0.4,
@@ -108,18 +108,18 @@ def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_snippe
     # Verify snippets were stored
     assert prompt_builder_with_rag.last_retrieved_snippets == snippets
 
-def test_retrieve_relevant_snippets_no_results(prompt_builder_with_rag, mock_snippet_retriever):
+def test_retrieve_relevant_snippets_no_results(prompt_builder_with_rag, mock_scroll_retriever):
     """Test snippet retrieval when no relevant snippets are found."""
-    mock_snippet_retriever.query.return_value = []
+    mock_scroll_retriever.query.return_value = []
     
     snippets = prompt_builder_with_rag._retrieve_relevant_snippets("test query")
     
     assert snippets == []
     assert prompt_builder_with_rag.last_retrieved_snippets == []
 
-def test_retrieve_relevant_snippets_exception(prompt_builder_with_rag, mock_snippet_retriever):
+def test_retrieve_relevant_snippets_exception(prompt_builder_with_rag, mock_scroll_retriever):
     """Test snippet retrieval when an exception occurs."""
-    mock_snippet_retriever.query.side_effect = Exception("Test error")
+    mock_scroll_retriever.query.side_effect = Exception("Test error")
     
     snippets = prompt_builder_with_rag._retrieve_relevant_snippets("test query")
     
@@ -174,7 +174,7 @@ def test_build_rag_context_with_snippets(prompt_builder):
     assert "Dear [Name]," in context
     assert "Hi [Name]," in context
 
-def test_build_llm_prompt_with_rag(prompt_builder_with_rag, chat_history_manager, mock_snippet_retriever):
+def test_build_llm_prompt_with_rag(prompt_builder_with_rag, chat_history_manager, mock_scroll_retriever):
     """Test building LLM prompt with RAG functionality."""
     # Add user message
     chat_history_manager.add_message("I need a cold outreach email for a tech company", MessageType.INITIAL_PROMPT)
@@ -190,7 +190,7 @@ def test_build_llm_prompt_with_rag(prompt_builder_with_rag, chat_history_manager
             "tone": "professional"
         }
     )
-    mock_snippet_retriever.query.return_value = [(mock_snippet, 0.85)]
+    mock_scroll_retriever.query.return_value = [(mock_snippet, 0.85)]
     
     prompt = prompt_builder_with_rag.build_llm_prompt()
     
@@ -201,7 +201,7 @@ def test_build_llm_prompt_with_rag(prompt_builder_with_rag, chat_history_manager
     assert "Write a completely original email" in prompt
     
     # Verify snippet was retrieved
-    mock_snippet_retriever.query.assert_called_once()
+    mock_scroll_retriever.query.assert_called_once()
 
 def test_build_llm_prompt_without_rag(prompt_builder, chat_history_manager):
     """Test building LLM prompt without RAG functionality."""
@@ -213,7 +213,7 @@ def test_build_llm_prompt_without_rag(prompt_builder, chat_history_manager):
     assert "REFERENCE EMAIL TEMPLATES" not in prompt
     assert "Do NOT copy specific details" not in prompt
 
-def test_get_last_retrieved_snippets(prompt_builder_with_rag, mock_snippet_retriever):
+def test_get_last_retrieved_snippets(prompt_builder_with_rag, mock_scroll_retriever):
     """Test getting last retrieved snippets."""
     mock_snippet = EmailSnippet(
         id="test1",
@@ -227,7 +227,7 @@ def test_get_last_retrieved_snippets(prompt_builder_with_rag, mock_snippet_retri
     )
     
     # Set up mock retrieval
-    mock_snippet_retriever.query.return_value = [(mock_snippet, 0.85)]
+    mock_scroll_retriever.query.return_value = [(mock_snippet, 0.85)]
     
     # Retrieve snippets
     prompt_builder_with_rag._retrieve_relevant_snippets("test query")
