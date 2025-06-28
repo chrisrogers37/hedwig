@@ -4,7 +4,7 @@ from datetime import datetime
 from .llm_service import LLMService
 from .logging_utils import log
 from .chat_history_manager import ChatHistoryManager, MessageType
-from .snippet_retriever import SnippetRetriever, EmailSnippet
+from .scroll_retriever import ScrollRetriever, EmailSnippet
 
 @dataclass
 class Profile:
@@ -18,13 +18,13 @@ class PromptBuilder:
     Handles prompt construction for email generation, using full conversation history from ChatHistoryManager.
     Now includes RAG functionality for retrieving relevant email templates.
     """
-    def __init__(self, llm_service: LLMService, chat_history_manager: ChatHistoryManager, profile: Optional[Profile] = None, config=None, snippet_retriever: Optional[SnippetRetriever] = None):
+    def __init__(self, llm_service: LLMService, chat_history_manager: ChatHistoryManager, profile: Optional[Profile] = None, config=None, scroll_retriever: Optional[ScrollRetriever] = None):
         self.llm_service = llm_service
         self.chat_history_manager = chat_history_manager
         self.profile = profile or Profile()
         self.draft_email = None
         self.config = config or getattr(llm_service, 'config', None)
-        self.snippet_retriever = snippet_retriever
+        self.scroll_retriever = scroll_retriever
         self.last_retrieved_snippets: List[Tuple[EmailSnippet, float]] = []
 
     def _get_tone_instructions(self, tone: str) -> str:
@@ -52,13 +52,13 @@ class PromptBuilder:
         Returns:
             List of (snippet, similarity_score) tuples
         """
-        if not self.snippet_retriever:
-            log("No snippet retriever available, skipping template retrieval", prefix="PromptBuilder")
+        if not self.scroll_retriever:
+            log("No scroll retriever available, skipping template retrieval", prefix="PromptBuilder")
             return []
         
         try:
             # Query for relevant snippets with a reasonable similarity threshold
-            snippets = self.snippet_retriever.query(
+            snippets = self.scroll_retriever.query(
                 query_text=user_context,
                 top_k=3,
                 min_similarity=0.4,  # Only use templates with good semantic match

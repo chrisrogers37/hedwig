@@ -12,7 +12,7 @@ from services.config_service import AppConfig
 from services.llm_service import LLMService
 from services.prompt_builder import PromptBuilder, Profile
 from services.chat_history_manager import ChatHistoryManager, MessageType
-from services.snippet_retriever import SnippetRetriever
+from services.scroll_retriever import ScrollRetriever
 from services.logging_utils import log
 import pyperclip
 
@@ -40,9 +40,9 @@ def initialize_services():
         llm_service = LLMService(config)
         chat_history_manager = ChatHistoryManager()
         chat_history_manager.start_conversation()
-        snippet_retriever = SnippetRetriever()
-        prompt_builder = PromptBuilder(llm_service, chat_history_manager, snippet_retriever=snippet_retriever)
-        return config, llm_service, chat_history_manager, prompt_builder, snippet_retriever
+        scroll_retriever = ScrollRetriever()
+        prompt_builder = PromptBuilder(llm_service, chat_history_manager, scroll_retriever=scroll_retriever)
+        return config, llm_service, chat_history_manager, prompt_builder, scroll_retriever
     except Exception as e:
         st.error(f"❌ Failed to initialize services: {e}")
         log(f"ERROR initializing services: {e}\n{traceback.format_exc()}")
@@ -225,7 +225,7 @@ def render_conversation_stats(chat_history_manager):
 def main():
     """Main application function."""
     # Initialize services
-    config, llm_service, chat_history_manager, prompt_builder, snippet_retriever = initialize_services()
+    config, llm_service, chat_history_manager, prompt_builder, scroll_retriever = initialize_services()
     
     if config is None:
         st.stop()
@@ -247,7 +247,7 @@ def main():
                 chat_history_manager = st.session_state['chat_history_manager']
             
             if "prompt_builder" not in st.session_state:
-                prompt_builder = PromptBuilder(llm_service, chat_history_manager, snippet_retriever=snippet_retriever)
+                prompt_builder = PromptBuilder(llm_service, chat_history_manager, scroll_retriever=scroll_retriever)
                 st.session_state['prompt_builder'] = prompt_builder
             else:
                 prompt_builder = st.session_state['prompt_builder']

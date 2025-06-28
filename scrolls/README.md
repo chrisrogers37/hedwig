@@ -5,7 +5,7 @@ This directory contains a curated collection of email templates organized by use
 ## Directory Structure
 
 ```
-email_snippets/
+scrolls/
 ├── cold_outreach/          # Initial outreach emails
 ├── follow_up/             # Follow-up sequences
 ├── introduction/          # General introductions
