@@ -94,15 +94,15 @@ class TestFileUtils:
         """Test finding files by extension."""
         test_dir = Path("/tmp/test_dir")
         test_files = [
-            Path("/tmp/test_dir/file1.md"),
-            Path("/tmp/test_dir/file2.md"),
-            Path("/tmp/test_dir/subdir/file3.md")
+            Path("/tmp/test_dir/file1.yaml"),
+            Path("/tmp/test_dir/file2.yaml"),
+            Path("/tmp/test_dir/subdir/file3.yaml")
         ]
         
         with patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.is_dir', return_value=True), \
              patch('pathlib.Path.rglob', return_value=test_files):
-            result = FileUtils.find_files_by_extension(test_dir, '.md')
+            result = FileUtils.find_files_by_extension(test_dir, '.yaml')
         
         assert result == test_files
     
@@ -111,7 +111,7 @@ class TestFileUtils:
         test_dir = Path("/nonexistent/dir")
         
         with patch('pathlib.Path.exists', return_value=False):
-            result = FileUtils.find_files_by_extension(test_dir, '.md')
+            result = FileUtils.find_files_by_extension(test_dir, '.yaml')
         
         assert result == []
     
@@ -121,7 +121,7 @@ class TestFileUtils:
         
         with patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.is_dir', return_value=False):
-            result = FileUtils.find_files_by_extension(test_dir, '.md')
+            result = FileUtils.find_files_by_extension(test_dir, '.yaml')
         
         assert result == []
     
@@ -132,7 +132,7 @@ class TestFileUtils:
         with patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.is_dir', return_value=True), \
              patch('pathlib.Path.rglob', side_effect=Exception("Unexpected error")):
-            result = FileUtils.find_files_by_extension(test_dir, '.md')
+            result = FileUtils.find_files_by_extension(test_dir, '.yaml')
         
         assert result == []
     
@@ -322,6 +322,6 @@ use_case: "Test Case"
         with patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.is_dir', return_value=True), \
              patch('pathlib.Path.rglob', return_value=[]):
-            result = FileUtils.find_files_by_extension(test_dir, '.md')
+            result = FileUtils.find_files_by_extension(test_dir, '.yaml')
         
         assert result == [] 

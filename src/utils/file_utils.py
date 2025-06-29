@@ -84,7 +84,7 @@ class FileUtils:
         
         Args:
             directory: Directory to search in
-            extension: File extension to search for (e.g., '.md', '.json')
+            extension: File extension to search for (e.g., '.yaml', '.json')
             
         Returns:
             List of file paths matching the extension

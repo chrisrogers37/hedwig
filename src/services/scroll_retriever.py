@@ -21,6 +21,7 @@ from ..utils.file_utils import FileUtils
 from ..utils.error_utils import ErrorHandler
 from .config_service import get_config
 from ..utils.text_utils import TextProcessor
+from ..utils.yaml_template_parser import YAMLTemplateParser
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -32,11 +33,13 @@ except ImportError:
 
 @dataclass
 class EmailSnippet:
-    """Represents a single email template with metadata and content."""
+    """Represents a single email template with metadata, content, and guidance."""
     id: str
     file_path: str
-    content: str
+    content: str  # Full template content (for backward compatibility)
+    template_content: str  # Template content only (for embeddings)
     metadata: Dict[str, Any]
+    guidance: Dict[str, Any]
     embedding: Optional[np.ndarray] = None
     
     @property
@@ -133,22 +136,20 @@ class ScrollRetriever:
         log(f"Loading email snippets from: {self.snippets_dir}")
         start_time = time.time()
         
-        # Find all markdown files using FileUtils
-        markdown_files = FileUtils.find_files_by_extension(self.snippets_dir, '.md')
-        markdown_files = [f for f in markdown_files if f.name != "README.md"]  # Exclude README
+        # Find all yaml files using FileUtils
+        yaml_files = FileUtils.find_files_by_extension(self.snippets_dir, '.yaml')
+        yaml_files = [f for f in yaml_files if f.name != "README.yaml"]  # Exclude README
         
         def load_all_snippets():
             loaded_count = 0
-            for file_path in markdown_files:
+            for file_path in yaml_files:
                 if loaded_count >= self.max_snippets:
                     log(f"Reached max snippets limit ({self.max_snippets})", prefix="ScrollRetriever")
                     break
-                
                 snippet = self._load_snippet(file_path)
                 if snippet:
                     self.snippets.append(snippet)
                     loaded_count += 1
-            
             log(f"Loaded {loaded_count} snippets in {time.time() - start_time:.2f}s", prefix="ScrollRetriever")
             return loaded_count
         
@@ -161,26 +162,30 @@ class ScrollRetriever:
         return loaded_count
     
     def _load_snippet(self, file_path: Path) -> Optional[EmailSnippet]:
-        """Load a single snippet file using FileUtils and ErrorHandler."""
+        """Load a single YAML template file."""
         def load_single_snippet():
-            # Read file content using FileUtils
-            content = FileUtils.safe_read_file(file_path)
-            if content is None:
+            # Parse YAML template
+            yaml_data = YAMLTemplateParser().parse_template(file_path)
+            
+            # Validate template structure
+            if not YAMLTemplateParser().validate_template(yaml_data):
+                log(f"WARNING: Invalid template structure in {file_path}", prefix="ScrollRetriever")
                 return None
             
-            # Parse frontmatter and content
-            frontmatter, body = FileUtils.parse_yaml_frontmatter(content)
+            # Extract components
+            template_content = YAMLTemplateParser().get_template_content(yaml_data)
+            metadata = YAMLTemplateParser().get_metadata(yaml_data)
+            guidance = YAMLTemplateParser().get_guidance(yaml_data)
             
-            # Process the body text
-            processed_body = TextProcessor.preprocess_text(body)
+            # Process template content for embedding
+            processed_content = TextProcessor.preprocess_text(template_content)
             
-            # Create snippet ID from file path
+            # Create snippet ID
             snippet_id = str(file_path.relative_to(self.snippets_dir)).replace('\\', '/')
             
-            # Create metadata
-            metadata = frontmatter or {}
+            # Add file metadata
             metadata['file_path'] = str(file_path)
-            metadata['word_count'] = len(processed_body.split())
+            metadata['word_count'] = len(processed_content.split())
             
             # Validate metadata
             if not self._validate_metadata(metadata):
@@ -190,8 +195,10 @@ class ScrollRetriever:
             snippet = EmailSnippet(
                 id=snippet_id,
                 file_path=str(file_path),
-                content=body,
-                metadata=metadata
+                content=template_content,  # For backward compatibility
+                template_content=processed_content,  # For embeddings
+                metadata=metadata,
+                guidance=guidance
             )
             
             log(f"Loaded snippet: {snippet_id} ({metadata['word_count']} words)", prefix="ScrollRetriever")
@@ -222,8 +229,17 @@ class ScrollRetriever:
         # Initialize model
         self.model = SentenceTransformer(self.embedding_model_name)
         
-        # Extract text content for embedding
-        texts = [snippet.content for snippet in self.snippets]
+        # Extract matching content for embedding (tags, notes, and template content)
+        texts = []
+        for snippet in self.snippets:
+            # Get matching content: tags, notes, and template content
+            tags = ' '.join(snippet.tags)
+            notes = snippet.metadata.get('notes', '')
+            template_content = snippet.template_content
+            
+            # Combine for matching
+            matching_content = f"{tags}\n\n{notes}\n\n{template_content}".strip()
+            texts.append(matching_content)
         
         # Generate embeddings
         self.embeddings = self.model.encode(texts, show_progress_bar=True)
@@ -241,8 +257,17 @@ class ScrollRetriever:
         # Initialize SimpleEmbeddings
         self.simple_embeddings = SimpleEmbeddings()
         
-        # Extract text content for embedding
-        texts = [snippet.content for snippet in self.snippets]
+        # Extract matching content for embedding (tags, notes, and template content)
+        texts = []
+        for snippet in self.snippets:
+            # Get matching content: tags, notes, and template content
+            tags = ' '.join(snippet.tags)
+            notes = snippet.metadata.get('notes', '')
+            template_content = snippet.template_content
+            
+            # Combine for matching
+            matching_content = f"{tags}\n\n{notes}\n\n{template_content}".strip()
+            texts.append(matching_content)
         
         # Generate embeddings using fit method
         self.embeddings = self.simple_embeddings.fit(texts)
@@ -255,20 +280,21 @@ class ScrollRetriever:
     
     def query(self, 
               query_text: str, 
-              top_k: int = 3, 
+              top_k: int = 1, 
               min_similarity: float = 0.75,
               filters: Optional[Dict[str, Any]] = None) -> List[Tuple[EmailSnippet, float]]:
         """
         Query snippets using semantic search with ErrorHandler.
+        Returns only the BEST match above the similarity threshold.
         
         Args:
             query_text: The query text
-            top_k: Number of top results to return
-            min_similarity: Minimum similarity threshold
+            top_k: Number of top results to return (default 1 for best match)
+            min_similarity: Minimum similarity threshold (default 0.75)
             filters: Optional filters to apply
             
         Returns:
-            List of (snippet, similarity_score) tuples
+            List of (snippet, similarity_score) tuples (max 1 result)
         """
         if not self._loaded:
             self.load_snippets()
@@ -291,9 +317,9 @@ class ScrollRetriever:
                     if not filters or self._matches_filters(snippet, filters):
                         results.append((snippet, similarity))
             
-            # Sort by similarity and return top_k
+            # Sort by similarity and return only the best match
             results.sort(key=lambda x: x[1], reverse=True)
-            return results[:top_k]
+            return results[:1]  # Only return the best match
         
         return ErrorHandler.handle_api_operation(perform_query) or []
     

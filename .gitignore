@@ -30,7 +30,4 @@ venv/
 *.sqlite3 
 
 # Project planning documents
-architecture.md
-tasks.md
-rag_feature_overview.md
-refactor_plan.md
+planning_docs/*.md

@@ -1,0 +1,61 @@
+metadata:
+  tags: ["cold", "healthcare", "doctor", "saas", "medical", "professional", "B2B"]
+  use_case: "SaaS Outreach"
+  tone: "Professional"
+  industry: "Healthcare"
+  role: "Sales Rep"
+  difficulty: "Intermediate"
+  author: "Hedwig Team"
+  date_created: "2024-01-01"
+  success_rate: 0.68
+  notes: "Effective for healthcare SaaS companies targeting medical professionals"
+
+template:
+  subject: "Healthcare Practice Solution"
+  content: |
+    Dear Dr. {{recipient_name}},
+
+    I hope this email finds you well. I'm {{sender_name}} from {{company_name}}, and I wanted to reach out regarding a solution that's helping healthcare providers like yourself improve patient outcomes while streamlining their practice.
+
+    I noticed that {{practice_name}} serves patients with {{patient_type}} needs, and I believe our platform could be particularly valuable for your practice.
+
+    {{company_name}} is a {{solution_type}} platform that enables {{key_benefit}}. We're currently working with {{number}} healthcare providers across {{geographic_area}}, helping them {{specific_outcome}}.
+
+    Here's how we could benefit your practice:
+    • {{benefit_1}}
+    • {{benefit_2}}
+    • {{benefit_3}}
+
+    Would you be available for a brief 15-minute call this week to discuss how {{company_name}} could support your patients and practice goals?
+
+    I'd be happy to share case studies from similar practices and answer any questions you might have.
+
+    Best regards,
+    {{sender_name}}
+    {{title}}
+    {{company_name}}
+    {{phone_number}}
+    {{website}}
+
+guidance:
+  avoid_phrases:
+    - "revolutionary"
+    - "game-changing"
+    - "cutting-edge"
+    - "innovative solution"
+    - "transformative"
+    - "breakthrough"
+  
+  preferred_phrases:
+    - "help improve"
+    - "support your practice"
+    - "benefit your patients"
+    - "streamline operations"
+    - "reduce administrative burden"
+    - "enhance patient care"
+  
+  writing_tips:
+    - "Focus on patient outcomes and practice efficiency"
+    - "Use evidence-based language"
+    - "Emphasize compliance and security"
+    - "Be respectful of medical professionals' time" 

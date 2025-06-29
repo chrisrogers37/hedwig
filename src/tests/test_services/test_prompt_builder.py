@@ -54,15 +54,19 @@ def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_scroll
     # Mock snippets
     mock_snippet1 = EmailSnippet(
         id="test1",
-        file_path="test1.md",
+        file_path="test1.yaml",
         content="Test content 1",
-        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"}
+        template_content="Test content 1",
+        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"},
+        guidance={"tone": "professional", "style": "formal"}
     )
     mock_snippet2 = EmailSnippet(
         id="test2",
-        file_path="test2.md",
+        file_path="test2.yaml",
         content="Test content 2",
-        metadata={"use_case": "followup", "industry": "healthcare", "tone": "friendly"}
+        template_content="Test content 2",
+        metadata={"use_case": "followup", "industry": "healthcare", "tone": "friendly"},
+        guidance={"tone": "friendly", "style": "informal"}
     )
     
     mock_scroll_retriever.query.return_value = [
@@ -112,15 +116,19 @@ def test_build_rag_context_with_snippets(prompt_builder):
     # Create mock snippets
     snippet1 = EmailSnippet(
         id="test1",
-        file_path="test1.md",
+        file_path="test1.yaml",
         content="Dear [Name],\n\nI hope this email finds you well...",
-        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"}
+        template_content="Dear [Name],\n\nI hope this email finds you well...",
+        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"},
+        guidance={"tone": "professional", "style": "formal"}
     )
     snippet2 = EmailSnippet(
         id="test2",
-        file_path="test2.md",
+        file_path="test2.yaml",
         content="Hi [Name],\n\nThanks for your time...",
-        metadata={"use_case": "followup", "industry": "healthcare", "tone": "friendly"}
+        template_content="Hi [Name],\n\nThanks for your time...",
+        metadata={"use_case": "followup", "industry": "healthcare", "tone": "friendly"},
+        guidance={"tone": "friendly", "style": "informal"}
     )
     
     snippets = [(snippet1, 0.85), (snippet2, 0.75)]
@@ -149,9 +157,11 @@ def test_build_llm_prompt_with_rag(prompt_builder_with_rag, chat_history_manager
     # Mock snippets
     mock_snippet = EmailSnippet(
         id="test1",
-        file_path="test1.md",
+        file_path="test1.yaml",
         content="Test email content",
-        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"}
+        template_content="Test email content",
+        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"},
+        guidance={"tone": "professional", "style": "formal"}
     )
     mock_scroll_retriever.query.return_value = [(mock_snippet, 0.85)]
     
@@ -181,9 +191,11 @@ def test_get_last_retrieved_snippets(prompt_builder_with_rag, mock_scroll_retrie
     # Mock snippets
     mock_snippet = EmailSnippet(
         id="test1",
-        file_path="test1.md",
+        file_path="test1.yaml",
         content="Test content",
-        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"}
+        template_content="Test content",
+        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"},
+        guidance={"tone": "professional", "style": "formal"}
     )
     mock_scroll_retriever.query.return_value = [(mock_snippet, 0.85)]
     
@@ -201,8 +213,7 @@ def test_build_llm_prompt_with_empty_history(prompt_builder):
     prompt = prompt_builder.build_llm_prompt()
     
     assert "expert assistant for writing outreach emails for any use case" in prompt
-    assert "[No user request provided]" in prompt
-    assert "[No profile info provided]" in prompt
+    assert "No conversation history available" in prompt  # Updated to match new approach
 
 def test_build_llm_prompt_with_conversation_history(prompt_builder, chat_history_manager):
     """Test building prompt with conversation history."""
@@ -216,7 +227,7 @@ def test_build_llm_prompt_with_conversation_history(prompt_builder, chat_history
     assert "expert assistant for writing outreach emails for any use case" in prompt
     assert "Make it more professional" in prompt  # Latest feedback should be included
     assert "I need help writing an outreach email" in prompt  # Original request should be in context
-    assert "Original request:" in prompt  # Should show conversation context
+    assert "User: I need help writing an outreach email" in prompt  # Updated to match new format
 
 def test_build_llm_prompt_with_profile(prompt_builder):
     """Test building prompt with user profile information."""
@@ -244,20 +255,86 @@ def test_build_llm_prompt_latest_user_message_only(prompt_builder, chat_history_
     
     assert "Second request" in prompt  # Latest user message
     assert "First request" in prompt  # Previous request should be in context
-    assert "Original request:" in prompt  # Should show conversation context
+    assert "User: First request" in prompt  # Updated to match new format
 
-def test_build_llm_prompt_with_feedback(prompt_builder, chat_history_manager):
-    """Test building prompt with feedback in the conversation."""
-    # Add conversation with feedback
-    chat_history_manager.add_message("Write me an outreach email", MessageType.INITIAL_PROMPT)
-    chat_history_manager.add_draft("Here's a draft...")
-    chat_history_manager.add_message("Make it more concise", MessageType.FEEDBACK)
+def test_build_llm_prompt_with_feedback(prompt_builder):
+    """Test building prompt with feedback using conversation context."""
+    # Add initial request
+    prompt_builder.chat_history_manager.add_message("Write an email to a client", MessageType.INITIAL_PROMPT)
+    
+    # Add a draft
+    prompt_builder.chat_history_manager.add_draft("Here is your email draft...")
+    
+    # Add feedback
+    prompt_builder.chat_history_manager.add_message("Make it more professional", MessageType.FEEDBACK)
     
     prompt = prompt_builder.build_llm_prompt()
     
-    assert "Make it more concise" in prompt  # Latest feedback should be included
-    assert "Previous draft to revise:" in prompt  # Should include previous draft context
-    assert "Here's a draft..." in prompt  # Should include the actual draft content
+    # Should include full conversation context
+    assert "User: Write an email to a client" in prompt
+    assert "Assistant: Here is your email draft..." in prompt
+    assert "User: Make it more professional" in prompt
+
+def test_build_full_conversation_context(prompt_builder):
+    """Test building full conversation context."""
+    # Add conversation messages
+    prompt_builder.chat_history_manager.add_message("Initial request", MessageType.INITIAL_PROMPT)
+    prompt_builder.chat_history_manager.add_draft("First draft")
+    prompt_builder.chat_history_manager.add_message("Feedback on draft", MessageType.FEEDBACK)
+    prompt_builder.chat_history_manager.add_draft("Revised draft")
+    
+    context = prompt_builder._build_full_conversation_context()
+    
+    # Should include all messages in order
+    assert "User: Initial request" in context
+    assert "Assistant: First draft" in context
+    assert "User: Feedback on draft" in context
+    assert "Assistant: Revised draft" in context
+
+def test_build_full_conversation_context_empty(prompt_builder):
+    """Test building conversation context with no messages."""
+    context = prompt_builder._build_full_conversation_context()
+    assert context == "No conversation history available."
+
+def test_build_full_conversation_context_single_message(prompt_builder):
+    """Test building conversation context with single message."""
+    prompt_builder.chat_history_manager.add_message("Single request", MessageType.INITIAL_PROMPT)
+    
+    context = prompt_builder._build_full_conversation_context()
+    assert "User: Single request" in context
+    assert "\n\n" not in context  # No separators for single message
+
+def test_build_full_conversation_context_with_system_message(prompt_builder):
+    """Test building conversation context including system messages."""
+    prompt_builder.chat_history_manager.add_message("System info", MessageType.SYSTEM)
+    prompt_builder.chat_history_manager.add_message("User request", MessageType.INITIAL_PROMPT)
+    
+    context = prompt_builder._build_full_conversation_context()
+    assert "System: System info" in context
+    assert "User: User request" in context
+
+def test_feedback_detection_by_message_type(prompt_builder):
+    """Test that feedback is detected by message type, not string content."""
+    # Add initial request
+    prompt_builder.chat_history_manager.add_message("Write an email", MessageType.INITIAL_PROMPT)
+    prompt_builder.chat_history_manager.add_draft("Draft email")
+    
+    # Add feedback (should be detected by type, not content)
+    prompt_builder.chat_history_manager.add_message("This is great!", MessageType.FEEDBACK)
+    
+    prompt = prompt_builder.build_llm_prompt()
+    
+    # Should include feedback even though content doesn't match old patterns
+    assert "User: This is great!" in prompt
+    
+    # Should not use deprecated methods
+    assert prompt_builder._get_previous_draft_context() == ""
+    assert prompt_builder._extract_feedback_instructions("test") == ""
+
+def test_deprecated_methods_return_empty(prompt_builder):
+    """Test that deprecated methods return empty strings."""
+    assert prompt_builder._get_previous_draft_context() == ""
+    assert prompt_builder._extract_feedback_instructions("any message") == ""
 
 def test_build_llm_prompt_natural_tone(prompt_builder, mock_config):
     """Test building prompt with natural tone."""
@@ -393,49 +470,49 @@ def test_build_enhanced_context_no_feedback(prompt_builder):
     assert context == "I need an outreach email"
 
 def test_build_enhanced_context_with_feedback(prompt_builder, chat_history_manager):
-    """Test building enhanced context with feedback."""
-    # Add feedback messages
+    """Test building enhanced context with all user messages."""
+    # Add user messages
     chat_history_manager.add_message("Make it more professional", MessageType.FEEDBACK)
     chat_history_manager.add_message("Focus on growth challenges", MessageType.FEEDBACK)
     
     context = prompt_builder._build_enhanced_context("I need a cold outreach email")
     
-    # Should include latest message + all feedback
+    # Should include latest message + all previous user messages
     assert "I need a cold outreach email" in context
     assert "Make it more professional" in context
     assert "Focus on growth challenges" in context
-    
-    # Most recent feedback should come first after the latest message
-    parts = context.split(" ")
-    assert "professional" in parts
-    assert "challenges" in parts
 
-def test_build_enhanced_context_feedback_order(prompt_builder, chat_history_manager):
-    """Test that feedback is included in reverse chronological order (most recent first)."""
-    # Add feedback in chronological order
-    chat_history_manager.add_message("Make it shorter", MessageType.FEEDBACK)
-    chat_history_manager.add_message("Add more details", MessageType.FEEDBACK)
-    chat_history_manager.add_message("Make it professional", MessageType.FEEDBACK)
+def test_build_enhanced_context_feedback_order(prompt_builder):
+    """Test that all user messages are included in the correct order in enhanced context."""
+    # Add initial request
+    prompt_builder.chat_history_manager.add_message("Write an email", MessageType.INITIAL_PROMPT)
+    prompt_builder.chat_history_manager.add_draft("First draft")
+    prompt_builder.chat_history_manager.add_message("First feedback", MessageType.FEEDBACK)
+    prompt_builder.chat_history_manager.add_draft("Second draft")
+    prompt_builder.chat_history_manager.add_message("Second feedback", MessageType.FEEDBACK)
     
-    context = prompt_builder._build_enhanced_context("Write an email")
+    # Build enhanced context
+    enhanced_context = prompt_builder._build_enhanced_context("Latest message")
     
-    # Check that all feedback is included
-    assert "Make it shorter" in context
-    assert "Add more details" in context
-    assert "Make it professional" in context
+    # Should include all user messages
+    assert "First feedback" in enhanced_context
+    assert "Second feedback" in enhanced_context
+    assert "Write an email" in enhanced_context
 
 def test_retrieve_relevant_snippets_with_enhanced_context(prompt_builder_with_rag, mock_scroll_retriever, chat_history_manager):
-    """Test that RAG retrieval uses enhanced context including feedback."""
-    # Add feedback
+    """Test that RAG retrieval uses enhanced context including all user messages."""
+    # Add user messages
     chat_history_manager.add_message("Make it more professional", MessageType.FEEDBACK)
     chat_history_manager.add_message("Focus on tech industry", MessageType.FEEDBACK)
     
     # Mock snippets
     mock_snippet = EmailSnippet(
         id="test1",
-        file_path="test1.md",
+        file_path="test1.yaml",
         content="Test content",
-        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"}
+        template_content="Test content",
+        metadata={"use_case": "outreach", "industry": "tech", "tone": "professional"},
+        guidance={"tone": "professional", "style": "formal"}
     )
     mock_scroll_retriever.query.return_value = [(mock_snippet, 0.85)]
     

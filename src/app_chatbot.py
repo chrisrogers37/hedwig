@@ -105,45 +105,6 @@ def render_configuration_sidebar(config):
     
     return config
 
-def classify_user_message(user_input: str, chat_history_manager: ChatHistoryManager) -> MessageType:
-    """
-    Intelligently classify user input as either a new request or feedback.
-    
-    Args:
-        user_input: The user's message
-        chat_history_manager: The chat history manager to check context
-        
-    Returns:
-        MessageType.INITIAL_PROMPT or MessageType.FEEDBACK
-    """
-    # Check if there's a recent draft to provide feedback on
-    latest_draft = chat_history_manager.get_latest_draft()
-    
-    # Keywords that indicate feedback rather than new requests
-    feedback_keywords = [
-        'do not', 'don\'t', 'avoid', 'remove', 'change', 'modify', 'edit',
-        'sounds', 'sounding', 'fake', 'ai-written', 'flair', 'natural',
-        'tone', 'style', 'language', 'word', 'phrase', 'sentence',
-        'too', 'very', 'extremely', 'overly', 'instead', 'rather',
-        'make it', 'rewrite', 'rephrase', 'adjust', 'tweak'
-    ]
-    
-    # Check if user input contains feedback indicators
-    input_lower = user_input.lower()
-    has_feedback_keywords = any(keyword in input_lower for keyword in feedback_keywords)
-    
-    # If there's a recent draft and the input looks like feedback, classify as feedback
-    if latest_draft and has_feedback_keywords:
-        return MessageType.FEEDBACK
-    
-    # If there's no recent draft, it's likely a new request
-    if not latest_draft:
-        return MessageType.INITIAL_PROMPT
-    
-    # If there's a draft but no clear feedback indicators, ask for clarification
-    # For now, default to feedback if there's a recent draft
-    return MessageType.FEEDBACK
-
 def render_chat_interface(chat_history_manager, prompt_builder):
     """Render the main chat interface."""
     st.title("Hedwig: Generate Outreach Emails For Any Use Case")
@@ -167,7 +128,7 @@ def render_chat_interface(chat_history_manager, prompt_builder):
         if message.type.value in ['draft', 'revised_draft']:
             st.chat_message("assistant").write(message.content)
         elif message.type.value == 'feedback':
-            st.chat_message("user").write(f"Feedback: {message.content}")
+            st.chat_message("user").write(message.content)
         elif message.type.value == 'initial_prompt':
             st.chat_message("user").write(message.content)
 
@@ -178,16 +139,10 @@ def render_chat_interface(chat_history_manager, prompt_builder):
     if user_input:
         log(f"User message: {user_input}", prefix="Hedwig")
         
-        # Intelligently classify the message type
-        message_type = classify_user_message(user_input, chat_history_manager)
-        log(f"Classified message as: {message_type.value}", prefix="Hedwig")
-        
-        chat_history_manager.add_message(user_input, message_type)
+        # Add user message to chat history (no classification needed)
+        chat_history_manager.add_message(user_input, MessageType.INITIAL_PROMPT)
         with st.chat_message("user"):
-            if message_type == MessageType.FEEDBACK:
-                st.markdown(f"Feedback: {user_input}")
-            else:
-                st.markdown(user_input)
+            st.markdown(user_input)
         st.session_state['regenerate'] = False  # Not a regeneration, it's a new message
         regenerate = False
 
@@ -243,6 +198,9 @@ def render_email_actions(email_content):
     with col3:
         if st.button("🗑️ Clear Conversation"):
             st.session_state['chat_history_manager'].clear_conversation()
+            # Reset the prompt builder cache when clearing conversation
+            if 'prompt_builder' in st.session_state:
+                st.session_state['prompt_builder'].reset_conversation_cache()
             st.rerun()
     
     # Show email in expandable section
@@ -300,6 +258,9 @@ def main():
                 prompt_builder = st.session_state['prompt_builder']
                 # Update the LLM service in case it changed
                 prompt_builder.llm_service = llm_service
+                # Reset cache if this is a new conversation (no messages)
+                if not chat_history_manager.messages:
+                    prompt_builder.reset_conversation_cache()
                 
         except Exception as e:
             st.error(f"❌ Failed to reinitialize services: {e}")
