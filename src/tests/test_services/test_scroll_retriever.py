@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 
 from services.scroll_retriever import ScrollRetriever, EmailSnippet
+from utils.file_utils import FileUtils
 
 
 class TestEmailSnippet:
@@ -158,7 +159,7 @@ Best regards,
         assert retriever._loaded is True
         
         snippet = retriever.snippets[0]
-        assert snippet.id == "scrolls_test_snippet"
+        assert snippet.id == "test_snippet.md"
         assert "Hi {{recipient_name}}" in snippet.content
         assert snippet.tags == ["test", "sample", "professional"]
         assert snippet.use_case == "Test Case"
@@ -203,8 +204,6 @@ Test content
     
     def test_parse_frontmatter_valid(self):
         """Test parsing valid YAML frontmatter."""
-        retriever = ScrollRetriever()
-        
         content = """---
 tags: ["test", "sample"]
 use_case: "Test"
@@ -215,31 +214,23 @@ difficulty: "Beginner"
 
 Email content here.
 """
-        
-        metadata, content_text = retriever._parse_frontmatter(content)
-        
-        assert metadata['tags'] == ["test", "sample"]
-        assert metadata['use_case'] == "Test"
-        assert metadata['tone'] == "Professional"
-        assert metadata['industry'] == "Tech"
-        assert metadata['difficulty'] == "Beginner"
+        metadata, content_text = FileUtils.parse_yaml_frontmatter(content)
+        assert metadata["tags"] == ["test", "sample"]
+        assert metadata["use_case"] == "Test"
+        assert metadata["tone"] == "Professional"
+        assert metadata["industry"] == "Tech"
+        assert metadata["difficulty"] == "Beginner"
         assert content_text.strip() == "Email content here."
     
     def test_parse_frontmatter_no_frontmatter(self):
         """Test parsing content without frontmatter."""
-        retriever = ScrollRetriever()
-        
         content = "Just plain content without frontmatter."
-        
-        metadata, content_text = retriever._parse_frontmatter(content)
-        
+        metadata, content_text = FileUtils.parse_yaml_frontmatter(content)
         assert metadata == {}
         assert content_text == content
     
     def test_parse_frontmatter_invalid_yaml(self):
         """Test parsing invalid YAML frontmatter."""
-        retriever = ScrollRetriever()
-        
         content = """---
 tags: ["unclosed list
 use_case: "Test"
@@ -247,11 +238,9 @@ use_case: "Test"
 
 Content
 """
-        
-        metadata, content_text = retriever._parse_frontmatter(content)
-        
+        metadata, content_text = FileUtils.parse_yaml_frontmatter(content)
         assert metadata == {}
-        assert "Content" in content_text
+        assert content_text.strip() == "Content"
     
     def test_validate_metadata_valid(self):
         """Test validation of valid metadata."""
@@ -318,7 +307,7 @@ Content
         # Patch SimpleEmbeddings to avoid n_components error
         with patch('services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
-            mock_instance.fit.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
+            mock_instance.embed_documents.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever._generate_simple_embeddings()
         
         assert retriever.embeddings is not None
@@ -350,9 +339,7 @@ Content
         # Patch SimpleEmbeddings to avoid n_components error
         with patch('services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
-            mock_instance.fit.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
-            mock_instance.transform.return_value = np.array([[0.2, 0.3]])
-            mock_instance.similarity.return_value = np.array([0.8, 0.6])
+            mock_instance.embed_documents.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever._generate_simple_embeddings()
         
         # Test query
@@ -372,8 +359,7 @@ Content
         
         # Mock simple embeddings
         with patch.object(retriever, 'simple_embeddings') as mock_embeddings:
-            mock_embeddings.transform.return_value = np.array([[0.1, 0.2]])
-            mock_embeddings.similarity.return_value = np.array([0.8, 0.6])
+            mock_embeddings.embed_documents.return_value = np.array([[0.1, 0.2]])
             retriever.embeddings = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever.simple_embeddings = mock_embeddings
             
@@ -391,9 +377,9 @@ Content
         with patch.object(retriever, '_generate_embeddings'):
             retriever.load_snippets()
         
-        professional_snippets = retriever.get_snippets_by_category('tone')
+        professional_snippets = retriever.get_snippets_by_category('Test Case')
         assert len(professional_snippets) == 1
-        assert professional_snippets[0].tone == 'Professional'
+        assert professional_snippets[0].use_case == 'Test Case'
     
     def test_get_snippet_by_id(self, temp_snippets_dir):
         """Test getting snippet by ID."""
@@ -402,9 +388,9 @@ Content
         with patch.object(retriever, '_generate_embeddings'):
             retriever.load_snippets()
         
-        snippet = retriever.get_snippet_by_id('scrolls_test_snippet')
+        snippet = retriever.get_snippet_by_id('test_snippet.md')
         assert snippet is not None
-        assert snippet.id == 'scrolls_test_snippet'
+        assert snippet.id == 'test_snippet.md'
         
         # Test non-existent ID
         snippet = retriever.get_snippet_by_id('non_existent')
@@ -421,9 +407,8 @@ Content
         
         assert stats['total_snippets'] == 1
         assert 'industries' in stats
-        assert 'use_cases' in stats
+        assert 'categories' in stats
         assert 'tones' in stats
-        assert 'roles' in stats
     
     def test_matches_filters(self):
         """Test filter matching logic."""

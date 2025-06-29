@@ -10,7 +10,7 @@ from typing import List, Dict, Any
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
-import re
+from ..utils.text_utils import TextProcessor
 
 class SimpleEmbeddings:
     """
@@ -42,8 +42,8 @@ class SimpleEmbeddings:
         Returns:
             Embeddings matrix
         """
-        # Preprocess texts
-        processed_texts = [self._preprocess_text(text) for text in texts]
+        # Preprocess texts using TextProcessor
+        processed_texts = [TextProcessor.preprocess_text(text) for text in texts]
         
         # Create TF-IDF vectors
         self.vectorizer = TfidfVectorizer(
@@ -77,32 +77,11 @@ class SimpleEmbeddings:
         if not self._fitted:
             raise ValueError("Model must be fitted before transforming")
         
-        processed_texts = [self._preprocess_text(text) for text in texts]
+        processed_texts = [TextProcessor.preprocess_text(text) for text in texts]
         tfidf_matrix = self.vectorizer.transform(processed_texts)
         embeddings = self.svd.transform(tfidf_matrix)
         
         return embeddings
-    
-    def _preprocess_text(self, text: str) -> str:
-        """
-        Preprocess text for better embedding quality.
-        
-        Args:
-            text: Raw text string
-            
-        Returns:
-            Preprocessed text
-        """
-        # Convert to lowercase
-        text = text.lower()
-        
-        # Remove special characters but keep important ones
-        text = re.sub(r'[^\w\s\-]', ' ', text)
-        
-        # Normalize whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
-        
-        return text
     
     def similarity(self, query_embedding: np.ndarray, embeddings: np.ndarray) -> np.ndarray:
         """

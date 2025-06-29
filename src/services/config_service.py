@@ -1,7 +1,13 @@
 import os
 from typing import Optional, Dict, Any
+from pathlib import Path
 from dotenv import load_dotenv
 import json
+
+from src.utils.logging_utils import log
+from src.utils.file_utils import FileUtils
+from src.utils.error_utils import ErrorHandler
+from src.utils.config_utils import ConfigUtils
 
 class AppConfig:
     """
@@ -18,31 +24,20 @@ class AppConfig:
     }
 
     def __init__(self, config_file: Optional[str] = None, load_env: bool = True):
+        # Load environment variables using ConfigUtils
         if load_env:
-            load_dotenv()
-        self._config: Dict[str, Any] = self.DEFAULTS.copy()
-        self._load_env()
+            ConfigUtils.load_environment_variables()
+        
+        # Get environment variables for our config keys
+        env_vars = ConfigUtils.get_env_variables(list(self.DEFAULTS.keys()))
+        
+        # Load file config if provided
+        file_config = None
         if config_file:
-            self._load_file(config_file)
-
-    def _load_env(self):
-        for key in self.DEFAULTS:
-            val = os.getenv(key)
-            if val is not None:
-                self._config[key] = val
-
-    def _load_file(self, config_file: str):
-        try:
-            with open(config_file, 'r') as f:
-                if config_file.endswith('.json'):
-                    data = json.load(f)
-                else:
-                    raise ValueError("Only JSON config files are supported.")
-            for key, val in data.items():
-                if key in self.DEFAULTS:
-                    self._config[key] = val
-        except Exception as e:
-            print(f"Warning: Failed to load config file: {e}")
+            file_config = ConfigUtils.load_config_from_file(config_file)
+        
+        # Merge all config sources using ConfigUtils
+        self._config = ConfigUtils.merge_configs(self.DEFAULTS, env_vars, file_config)
 
     def get(self, key: str, default: Any = None) -> Any:
         return self._config.get(key, default)
@@ -85,13 +80,13 @@ class AppConfig:
         return ""
 
     def validate(self) -> bool:
-        """Validate required config fields. Returns True if valid, else False."""
+        """Validate required config fields using ConfigUtils."""
+        required_keys = []
         if self.provider == "openai":
-            if not self.openai_api_key:
-                print("Error: OPENAI_API_KEY is required.")
-                return False
-        # Future providers would be validated here
-        return True
+            required_keys = ["OPENAI_API_KEY"]
+        # Future providers would add their required keys here
+        
+        return ConfigUtils.validate_config(self._config, required_keys)
 
 def get_config() -> AppConfig:
     config = AppConfig()

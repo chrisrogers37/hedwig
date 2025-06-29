@@ -66,5 +66,5 @@ def test_generate_response_api_error(llm_service):
     """Test generate_response handles API errors."""
     llm_service.client.chat.completions.create.side_effect = Exception("API Error")
     
-    with pytest.raises(Exception, match="API Error"):
-        llm_service.generate_response("Test prompt") 
+    result = llm_service.generate_response("Test prompt")
+    assert result is None 

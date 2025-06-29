@@ -2,16 +2,17 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from .llm_service import LLMService
-from .logging_utils import log
+from ..utils.logging_utils import log
 from .chat_history_manager import ChatHistoryManager, MessageType
 from .scroll_retriever import ScrollRetriever, EmailSnippet
+from ..utils.text_utils import TextProcessor
 
 @dataclass
 class Profile:
-    your_name: str = ""
-    your_title: str = ""
-    company_name: str = ""
-    # Add more fields as needed
+    """User profile information for email generation."""
+    name: str = ""
+    title: str = ""
+    company: str = ""
 
 class PromptBuilder:
     """
@@ -57,9 +58,12 @@ class PromptBuilder:
             return []
         
         try:
+            # Build enhanced context from latest user message + all feedback
+            enhanced_context = self._build_enhanced_context(user_context)
+            
             # Query for relevant snippets with a reasonable similarity threshold
             snippets = self.scroll_retriever.query(
-                query_text=user_context,
+                query_text=enhanced_context,
                 top_k=3,
                 min_similarity=0.4,  # Only use templates with good semantic match
                 filters=None  # Could add filters based on user preferences
@@ -78,6 +82,34 @@ class PromptBuilder:
         except Exception as e:
             log(f"Error retrieving snippets: {e}", prefix="PromptBuilder")
             return []
+
+    def _build_enhanced_context(self, latest_user_message: str) -> str:
+        """
+        Build enhanced context by combining latest user message with all feedback.
+        
+        Args:
+            latest_user_message: The most recent user message
+            
+        Returns:
+            Enhanced context string for RAG retrieval
+        """
+        # Get all feedback messages
+        feedback_messages = [msg for msg in self.chat_history_manager.messages if msg.type == MessageType.FEEDBACK]
+        
+        if not feedback_messages:
+            return latest_user_message
+        
+        # Combine latest message with all feedback
+        context_parts = [latest_user_message]
+        
+        # Add all feedback (most recent first for emphasis)
+        for feedback in reversed(feedback_messages):
+            context_parts.append(feedback.content)
+        
+        enhanced_context = " ".join(context_parts)
+        
+        log(f"Enhanced RAG context: {enhanced_context[:100]}...", prefix="PromptBuilder")
+        return enhanced_context
 
     def _build_rag_context(self, snippets: List[Tuple[EmailSnippet, float]]) -> str:
         """
@@ -130,103 +162,6 @@ Now, write a completely original email for the user's specific situation, using 
         
         return rag_context
 
-    def build_outreach_prompt(self, context: Dict[str, Any]) -> str:
-        your_name = context.get("your_name", "Your Name")
-        your_title = context.get("your_title", "Your Title")
-        company_name = context.get("company_name", "Your Company")
-        recipient_name = context.get("recipient_name", "Recipient")
-        recipient_organization = context.get("recipient_organization", "Their Organization")
-        value_propositions = context.get("value_propositions", [])
-        call_to_action = context.get("call_to_action", "schedule a meeting")
-        additional_notes = context.get("additional_notes", "")
-        tone = context.get("tone") or (self.config.default_tone if self.config else "professional")
-        language = context.get("language") or (self.config.default_language if self.config else "English")
-        tone_instructions = self._get_tone_instructions(tone)
-
-        value_props_text = ""
-        if value_propositions:
-            value_props_text = "\n\nKey Value Propositions:\n"
-            for i, prop in enumerate(value_propositions, 1):
-                if prop.get("title") and prop.get("content"):
-                    value_props_text += f"{i}. {prop['title']}: {prop['content']}\n"
-
-        prompt = f"""You are a professional sales representative writing a personalized outreach email.
-
-Your Information:
-- Name: {your_name}
-- Title: {your_title}
-- Company: {company_name}
-
-Recipient Information:
-- Name: {recipient_name}
-- Organization: {recipient_organization}
-
-Email Type: Initial Outreach
-Tone: {tone}
-{tone_instructions}
-Language: {language}
-
-{value_props_text}
-
-Call to Action: {call_to_action}
-
-Additional Context: {additional_notes}
-
-Please write a professional, personalized outreach email that:
-1. Is concise and engaging
-2. References the recipient's organization
-3. Highlights the value propositions
-4. Includes a clear call to action
-5. Maintains a {tone} tone
-
-Format the email with proper greeting, body, and signature."""
-        return prompt
-
-    def build_followup_prompt(self, context: Dict[str, Any]) -> str:
-        your_name = context.get("your_name", "Your Name")
-        your_title = context.get("your_title", "Your Title")
-        company_name = context.get("company_name", "Your Company")
-        recipient_name = context.get("recipient_name", "Recipient")
-        recipient_organization = context.get("recipient_organization", "Their Organization")
-        discussion_notes = context.get("discussion_notes", "")
-        pain_points = context.get("pain_points", "")
-        next_steps = context.get("next_steps", "")
-        additional_notes = context.get("additional_notes", "")
-        tone = context.get("tone") or (self.config.default_tone if self.config else "professional")
-        language = context.get("language") or (self.config.default_language if self.config else "English")
-        tone_instructions = self._get_tone_instructions(tone)
-
-        prompt = f"""You are a professional sales representative writing a follow-up email after a meeting or conversation.
-
-Your Information:
-- Name: {your_name}
-- Title: {your_title}
-- Company: {company_name}
-
-Recipient Information:
-- Name: {recipient_name}
-- Organization: {recipient_organization}
-
-Email Type: Follow-up
-Tone: {tone}
-{tone_instructions}
-Language: {language}
-
-Discussion Notes: {discussion_notes}
-Pain Points Identified: {pain_points}
-Agreed Next Steps: {next_steps}
-Additional Context: {additional_notes}
-
-Please write a professional follow-up email that:
-1. Thanks the recipient for their time
-2. Summarizes key points from the discussion
-3. References specific pain points or challenges discussed
-4. Outlines agreed next steps
-5. Maintains a {tone} tone
-
-Format the email with proper greeting, body, and signature."""
-        return prompt
-
     def build_llm_prompt(self) -> str:
         # Extract the latest user message as the main goal/request
         user_messages = [msg for msg in self.chat_history_manager.messages if msg.type in (MessageType.INITIAL_PROMPT, MessageType.FEEDBACK)]
@@ -240,12 +175,12 @@ Format the email with proper greeting, body, and signature."""
 
         # Profile info
         profile_lines = []
-        if self.profile.your_name:
-            profile_lines.append(f"Name: {self.profile.your_name}")
-        if self.profile.your_title:
-            profile_lines.append(f"Title: {self.profile.your_title}")
-        if self.profile.company_name:
-            profile_lines.append(f"Company: {self.profile.company_name}")
+        if self.profile.name:
+            profile_lines.append(f"Name: {self.profile.name}")
+        if self.profile.title:
+            profile_lines.append(f"Title: {self.profile.title}")
+        if self.profile.company:
+            profile_lines.append(f"Company: {self.profile.company}")
         profile_text = "\n".join(profile_lines)
 
         # Tone and language

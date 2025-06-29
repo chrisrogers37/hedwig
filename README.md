@@ -91,6 +91,8 @@ Toggle "Show Extracted Context" in the sidebar to see what information the AI ha
 - **Session Management**: Maintains conversation state during your session
 - **Error Handling**: Graceful handling of API errors and missing configuration
 - **Responsive Design**: Works on desktop and mobile devices
+- **RAG Integration**: Retrieves relevant email templates for better generation
+- **Modular Architecture**: Clean separation of concerns with utilities and services
 
 ## 🧪 Testing
 
@@ -102,21 +104,58 @@ python demo_chatbot.py
 
 Run tests to ensure everything works:
 ```bash
-PYTHONPATH=src pytest src/tests/
+python -m pytest
 ```
 
 ## 📁 File Structure
 
 ```
-src/
-├── app_chatbot.py          # Main chatbot Streamlit app
-├── demo_chatbot.py         # Demo script showing conversation flow
-├── services/
-│   ├── config_service.py   # Configuration management
-│   ├── llm_service.py      # LLM integration
-│   └── prompt_builder.py   # Conversational context building
-└── tests/
-    └── test_chatbot_app.py # Chatbot app tests
+hedwig/
+├── src/
+│   ├── app_chatbot.py          # Main chatbot Streamlit app
+│   ├── demo_chatbot.py         # Demo script showing conversation flow
+│   ├── services/               # Core business logic services
+│   │   ├── __init__.py
+│   │   ├── chat_history_manager.py
+│   │   ├── config_service.py
+│   │   ├── llm_service.py
+│   │   ├── prompt_builder.py
+│   │   ├── scroll_retriever.py
+│   │   └── simple_embeddings.py
+│   ├── utils/                  # Shared utilities and helpers
+│   │   ├── __init__.py
+│   │   ├── logging_utils.py
+│   │   └── text_utils.py
+│   └── tests/                  # Test suite
+│       ├── conftest.py         # Pytest configuration
+│       ├── test_services/      # Service-specific tests
+│       │   ├── __init__.py
+│       │   ├── test_chat_history_manager.py
+│       │   ├── test_chatbot_app.py
+│       │   ├── test_config_service.py
+│       │   ├── test_llm_service.py
+│       │   ├── test_prompt_builder.py
+│       │   ├── test_scroll_retriever.py
+│       │   ├── test_simple_embeddings.py
+│       │   └── test_snippet_retriever_queries.py
+│       └── test_utils/         # Utility-specific tests
+│           ├── __init__.py
+│           ├── test_logging_utils.py
+│           └── test_text_utils.py
+├── scrolls/                    # Email templates and snippets
+│   ├── README.md
+│   ├── entertainment/
+│   ├── general/
+│   ├── healthcare/
+│   └── tech/
+├── planning_docs/              # Project planning and documentation
+│   ├── architecture.md
+│   ├── refactor_plan.md
+│   ├── tasks.md
+│   └── rag_feature_overview.md
+├── requirements.txt
+├── pyproject.toml             # Project configuration
+└── README.md
 ```
 
 ## 🔄 Migration from Old Interface
@@ -173,4 +212,24 @@ The new interface provides a much better user experience with natural conversati
 ### Technical Improvements
 - **Performance Optimization**: Implement caching for frequently used templates
 - **Template Analytics**: Track which templates are most effective
-- **Dynamic Thresholds**: Industry-specific similarity thresholds for better template matching 
+- **Dynamic Thresholds**: Industry-specific similarity thresholds for better template matching
+
+## 🏗️ Architecture
+
+### Services Layer
+- **ChatHistoryManager**: Manages conversation state and history
+- **ConfigService**: Handles configuration and environment variables
+- **LLMService**: Interfaces with language models (OpenAI, etc.)
+- **PromptBuilder**: Constructs prompts with RAG context
+- **ScrollRetriever**: Retrieves relevant email templates
+- **SimpleEmbeddings**: Lightweight semantic embeddings
+
+### Utilities Layer
+- **LoggingUtils**: Standardized logging across the application
+- **TextUtils**: Text preprocessing and normalization utilities
+
+### Testing
+- **Comprehensive Test Suite**: 132+ tests covering all functionality
+- **Service Tests**: Isolated testing of business logic
+- **Utility Tests**: Testing of shared utilities
+- **Integration Tests**: End-to-end functionality testing 

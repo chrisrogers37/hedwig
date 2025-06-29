@@ -3,7 +3,8 @@ import openai
 from .config_service import AppConfig
 import os
 from .config_service import get_config
-from .logging_utils import log
+from ..utils.logging_utils import log
+from ..utils.error_utils import ErrorHandler
 
 
 class LLMService:
@@ -26,10 +27,11 @@ class LLMService:
             self.client = openai.OpenAI(api_key=api_key)
         # Future providers would be added here
     
-    def generate_response(self, prompt: str, max_tokens: int = 1200, temperature: float = 0.7) -> str:
+    def generate_response(self, prompt: str, max_tokens: int = 1200, temperature: float = 0.7) -> Optional[str]:
         """Send the prompt to the LLM and return the response. Log all prompts and responses."""
         model = getattr(self.config, 'openai_model', 'gpt-4')
-        try:
+        
+        def api_call():
             log(f"Sending prompt to OpenAI ({model}):\n{prompt}", prefix="LLMService")
             response = self.client.chat.completions.create(
                 model=model,
@@ -40,6 +42,5 @@ class LLMService:
             llm_output = response.choices[0].message.content
             log(f"OpenAI response:\n{llm_output}", prefix="LLMService")
             return llm_output
-        except Exception as e:
-            log(f"OpenAI API error: {e}", prefix="LLMService")
-            raise 
+        
+        return ErrorHandler.handle_api_operation(api_call) 

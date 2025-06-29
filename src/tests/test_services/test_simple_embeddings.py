@@ -6,6 +6,7 @@ import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
 from services.simple_embeddings import SimpleEmbeddings, create_embeddings
+from utils.text_utils import TextProcessor
 
 
 class TestSimpleEmbeddings:
@@ -28,16 +29,14 @@ class TestSimpleEmbeddings:
     
     def test_preprocess_text(self):
         """Test text preprocessing."""
-        embeddings = SimpleEmbeddings()
-        
         # Test basic preprocessing
         text = "Hello, World! This is a TEST."
-        processed = embeddings._preprocess_text(text)
+        processed = TextProcessor.preprocess_text(text)
         assert processed == "hello world this is a test"
         
         # Test with special characters
         text = "Email@domain.com - (123) 456-7890"
-        processed = embeddings._preprocess_text(text)
+        processed = TextProcessor.preprocess_text(text)
         assert "email" in processed
         assert "domain" in processed
         assert "123" in processed
@@ -46,7 +45,7 @@ class TestSimpleEmbeddings:
         
         # Test with extra whitespace
         text = "  Multiple    spaces   "
-        processed = embeddings._preprocess_text(text)
+        processed = TextProcessor.preprocess_text(text)
         assert processed == "multiple spaces"
     
     def test_fit(self):
