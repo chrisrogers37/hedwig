@@ -309,7 +309,7 @@ Content
         # Patch SimpleEmbeddings to avoid n_components error
         with patch('src.services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
-            mock_instance.embed_documents.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
+            mock_instance.fit.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever._generate_simple_embeddings()
         
         assert retriever.embeddings is not None
@@ -341,7 +341,8 @@ Content
         # Patch SimpleEmbeddings to avoid n_components error
         with patch('src.services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
-            mock_instance.embed_documents.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
+            mock_instance.fit.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
+            mock_instance.transform.return_value = np.array([[0.1, 0.2]])  # Query embedding
             retriever._generate_simple_embeddings()
         
         # Test query
@@ -361,7 +362,7 @@ Content
         
         # Mock simple embeddings
         with patch.object(retriever, 'simple_embeddings') as mock_embeddings:
-            mock_embeddings.embed_documents.return_value = np.array([[0.1, 0.2]])
+            mock_embeddings.transform.return_value = np.array([[0.1, 0.2]])
             retriever.embeddings = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever.simple_embeddings = mock_embeddings
             
@@ -447,4 +448,49 @@ Content
         
         # Test multiple filters with one mismatch
         filters = {'tone': 'Professional', 'industry': 'Finance'}
-        assert retriever._matches_filters(snippet, filters) is False 
+        assert retriever._matches_filters(snippet, filters) is False
+    
+    def test_simple_embeddings_integration(self):
+        """Test that ScrollRetriever works correctly with SimpleEmbeddings."""
+        # Create a temporary directory with test snippets
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            scrolls_dir = temp_path / "scrolls"
+            scrolls_dir.mkdir()
+            
+            # Create a test snippet
+            snippet_content = """---
+tags: ["test", "email"]
+use_case: "Test Case"
+tone: "Professional"
+industry: "Test"
+role: "Tester"
+difficulty: "Beginner"
+author: "Test"
+date_created: "2024-01-01"
+success_rate: 0.8
+notes: "Test template"
+---
+
+This is a test email template for testing purposes.
+"""
+            
+            snippet_file = scrolls_dir / "test_snippet.md"
+            with open(snippet_file, 'w') as f:
+                f.write(snippet_content)
+            
+            # Initialize ScrollRetriever with SimpleEmbeddings
+            retriever = ScrollRetriever(
+                snippets_dir=str(scrolls_dir),
+                use_sentence_transformers=False  # Force SimpleEmbeddings
+            )
+            
+            # Load snippets and generate embeddings
+            count = retriever.load_snippets()
+            assert count == 1
+            
+            # Test query - should not raise AttributeError
+            results = retriever.query("test email template", top_k=1)
+            assert len(results) == 1
+            assert results[0][0].content.strip() == "This is a test email template for testing purposes."
+            assert results[0][1] > 0  # Should have some similarity score 

@@ -205,18 +205,15 @@ class ScrollRetriever:
         return all(field in metadata for field in required_fields)
     
     def _generate_embeddings(self) -> None:
-        """Generate embeddings for all loaded snippets using ErrorHandler."""
+        """Generate embeddings for all loaded snippets."""
         if not self.snippets:
             log("No snippets to generate embeddings for", prefix="ScrollRetriever")
             return
         
-        def generate_embeddings():
-            if self.use_sentence_transformers:
-                self._generate_sentence_transformer_embeddings()
-            else:
-                self._generate_simple_embeddings()
-        
-        ErrorHandler.handle_api_operation(generate_embeddings)
+        if self.use_sentence_transformers:
+            self._generate_sentence_transformer_embeddings()
+        else:
+            self._generate_simple_embeddings()
     
     def _generate_sentence_transformer_embeddings(self) -> None:
         """Generate embeddings using sentence-transformers."""
@@ -247,8 +244,8 @@ class ScrollRetriever:
         # Extract text content for embedding
         texts = [snippet.content for snippet in self.snippets]
         
-        # Generate embeddings
-        self.embeddings = self.simple_embeddings.embed_documents(texts)
+        # Generate embeddings using fit method
+        self.embeddings = self.simple_embeddings.fit(texts)
         
         # Store embeddings with snippets
         for i, snippet in enumerate(self.snippets):
@@ -259,7 +256,7 @@ class ScrollRetriever:
     def query(self, 
               query_text: str, 
               top_k: int = 3, 
-              min_similarity: float = 0.3,
+              min_similarity: float = 0.75,
               filters: Optional[Dict[str, Any]] = None) -> List[Tuple[EmailSnippet, float]]:
         """
         Query snippets using semantic search with ErrorHandler.
@@ -305,7 +302,7 @@ class ScrollRetriever:
         if self.use_sentence_transformers and self.model:
             return self.model.encode([query_text])[0]
         elif self.simple_embeddings:
-            return self.simple_embeddings.embed_documents([query_text])[0]
+            return self.simple_embeddings.transform([query_text])[0]
         else:
             raise ValueError("No embedding model available")
     
