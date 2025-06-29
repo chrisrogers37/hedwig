@@ -8,12 +8,12 @@ import traceback
 project_root = str(Path(__file__).parent.parent)
 sys.path.append(project_root)
 
-from services.config_service import AppConfig
-from services.llm_service import LLMService
-from services.prompt_builder import PromptBuilder, Profile
-from services.chat_history_manager import ChatHistoryManager, MessageType
-from services.scroll_retriever import ScrollRetriever
-from services.logging_utils import log
+from .services.config_service import AppConfig
+from .services.llm_service import LLMService
+from .services.prompt_builder import PromptBuilder, Profile
+from .services.chat_history_manager import ChatHistoryManager, MessageType
+from .services.scroll_retriever import ScrollRetriever
+from .utils.logging_utils import log
 import pyperclip
 
 def mask_key(key):

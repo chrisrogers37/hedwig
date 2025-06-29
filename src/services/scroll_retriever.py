@@ -1,31 +1,29 @@
 """
-Scroll Retriever Service for Hedwig
+Scroll Retriever Service
 
-Provides semantic search and retrieval of email templates for RAG (Retrieval-Augmented Generation).
-Uses SimpleEmbeddings (TF-IDF + SVD) for semantic search, with fallback to basic TF-IDF.
+This service provides RAG (Retrieval-Augmented Generation) capabilities by loading
+email templates from markdown files and providing semantic search functionality.
 """
 
-import os
-import yaml
 import time
-from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple
-from dataclasses import dataclass
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import logging
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
+from dataclasses import dataclass
 
-from .logging_utils import log
 from .simple_embeddings import SimpleEmbeddings
+from ..utils.logging_utils import log
+from ..utils.file_utils import FileUtils
+from ..utils.error_utils import ErrorHandler
+from .config_service import AppConfig
+from ..utils.text_utils import TextProcessor
 
-# Try to import sentence-transformers, but don't fail if not available
 try:
     from sentence_transformers import SentenceTransformer
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
-    log("WARNING: sentence-transformers not available, using SimpleEmbeddings")
+    log("WARNING: sentence-transformers not available, using SimpleEmbeddings", prefix="ScrollRetriever")
 
 
 @dataclass
@@ -120,237 +118,139 @@ class ScrollRetriever:
     
     def load_snippets(self) -> int:
         """
-        Load all email snippets from the snippets directory.
+        Load all email snippets from the scrolls directory using FileUtils and ErrorHandler.
         
         Returns:
             Number of snippets loaded
         """
         if self._loaded:
-            log(f"Snippets already loaded: {len(self.snippets)} snippets")
             return len(self.snippets)
         
         log(f"Loading email snippets from: {self.snippets_dir}")
         start_time = time.time()
         
-        # Find all markdown files
-        md_files = list(self.snippets_dir.rglob("*.md"))
-        md_files = [f for f in md_files if f.name != "README.md"]  # Exclude README
+        # Find all markdown files using FileUtils
+        markdown_files = FileUtils.find_files_by_extension(self.snippets_dir, '.md')
+        markdown_files = [f for f in markdown_files if f.name != "README.md"]  # Exclude README
         
-        log(f"Found {len(md_files)} markdown files (excluding README.md)")
-        for file_path in md_files:
-            log(f"  - {file_path}")
-        
-        if not md_files:
-            log("WARNING: No markdown files found in snippets directory")
-            return 0
-        
-        # Load snippets
-        loaded_count = 0
-        failed_count = 0
-        for file_path in md_files[:self.max_snippets]:
-            try:
+        def load_all_snippets():
+            loaded_count = 0
+            for file_path in markdown_files:
+                if loaded_count >= self.max_snippets:
+                    log(f"Reached max snippets limit ({self.max_snippets})", prefix="ScrollRetriever")
+                    break
+                
                 snippet = self._load_snippet(file_path)
                 if snippet:
                     self.snippets.append(snippet)
                     loaded_count += 1
-                    log(f"✓ Loaded snippet: {snippet.id} ({snippet.use_case} for {snippet.industry} {snippet.role})")
-                else:
-                    failed_count += 1
-                    log(f"✗ Failed to load snippet: {file_path}")
-            except Exception as e:
-                failed_count += 1
-                log(f"ERROR loading snippet {file_path}: {e}")
+            
+            log(f"Loaded {loaded_count} snippets in {time.time() - start_time:.2f}s", prefix="ScrollRetriever")
+            return loaded_count
         
-        # Generate embeddings if caching is enabled
-        if self.cache_embeddings and self.snippets:
-            log(f"Generating embeddings for {len(self.snippets)} snippets...")
+        loaded_count = ErrorHandler.handle_file_operation(load_all_snippets) or 0
+        
+        if loaded_count > 0:
             self._generate_embeddings()
-        else:
-            log("Skipping embedding generation (cache_embeddings=False or no snippets)")
+            self._loaded = True
         
-        load_time = time.time() - start_time
-        log(f"Loaded {loaded_count} snippets, failed {failed_count} in {load_time:.2f}s")
-        
-        self._loaded = True
         return loaded_count
     
     def _load_snippet(self, file_path: Path) -> Optional[EmailSnippet]:
-        """
-        Load a single snippet from a markdown file.
-        
-        Args:
-            file_path: Path to the markdown file
-            
-        Returns:
-            EmailSnippet object or None if loading fails
-        """
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Parse YAML frontmatter
-            metadata, content = self._parse_frontmatter(content)
-            
-            log(f"Parsed metadata for {file_path}: {metadata}")
-            
-            # Validate required metadata
-            if not self._validate_metadata(metadata):
-                missing_fields = []
-                required_fields = ['use_case', 'tone', 'industry']
-                for field in required_fields:
-                    if field not in metadata or not metadata[field]:
-                        missing_fields.append(field)
-                log(f"WARNING: Invalid metadata in {file_path} - missing fields: {missing_fields}")
+        """Load a single snippet file using FileUtils and ErrorHandler."""
+        def load_single_snippet():
+            # Read file content using FileUtils
+            content = FileUtils.safe_read_file(file_path)
+            if content is None:
                 return None
             
-            # Create snippet ID
-            snippet_id = f"{file_path.parent.name}_{file_path.stem}"
+            # Parse frontmatter and content
+            frontmatter, body = FileUtils.parse_yaml_frontmatter(content)
+            
+            # Process the body text
+            processed_body = TextProcessor.preprocess_text(body)
+            
+            # Create snippet ID from file path
+            snippet_id = str(file_path.relative_to(self.snippets_dir)).replace('\\', '/')
+            
+            # Create metadata
+            metadata = frontmatter or {}
+            metadata['file_path'] = str(file_path)
+            metadata['word_count'] = len(processed_body.split())
+            
+            # Validate metadata
+            if not self._validate_metadata(metadata):
+                log(f"WARNING: Invalid metadata in {file_path}", prefix="ScrollRetriever")
+                return None
             
             snippet = EmailSnippet(
                 id=snippet_id,
                 file_path=str(file_path),
-                content=content.strip(),
+                content=body,
                 metadata=metadata
             )
             
-            log(f"Successfully created snippet: {snippet_id}")
+            log(f"Loaded snippet: {snippet_id} ({metadata['word_count']} words)", prefix="ScrollRetriever")
             return snippet
-            
-        except Exception as e:
-            log(f"ERROR loading snippet {file_path}: {e}")
-            return None
-    
-    def _parse_frontmatter(self, content: str) -> Tuple[Dict[str, Any], str]:
-        """
-        Parse YAML frontmatter from markdown content.
         
-        Args:
-            content: Raw markdown content
-            
-        Returns:
-            Tuple of (metadata, content)
-        """
-        lines = content.split('\n')
-        
-        if not lines or not lines[0].strip().startswith('---'):
-            return {}, content
-        
-        # Find frontmatter boundaries
-        start_idx = 0
-        end_idx = None
-        
-        for i, line in enumerate(lines[1:], 1):
-            if line.strip() == '---':
-                end_idx = i
-                break
-        
-        if end_idx is None:
-            return {}, content
-        
-        # Extract and parse frontmatter
-        frontmatter_lines = lines[1:end_idx]
-        frontmatter_text = '\n'.join(frontmatter_lines)
-        
-        try:
-            metadata = yaml.safe_load(frontmatter_text) or {}
-        except yaml.YAMLError as e:
-            log(f"ERROR parsing YAML frontmatter: {e}")
-            metadata = {}
-        
-        # Extract content after frontmatter
-        content_lines = lines[end_idx + 1:]
-        content = '\n'.join(content_lines)
-        
-        return metadata, content
+        return ErrorHandler.handle_file_operation(load_single_snippet)
     
     def _validate_metadata(self, metadata: Dict[str, Any]) -> bool:
-        """
-        Validate that required metadata fields are present.
-        
-        Args:
-            metadata: Metadata dictionary
-            
-        Returns:
-            True if valid, False otherwise
-        """
+        """Validate snippet metadata."""
         required_fields = ['use_case', 'tone', 'industry']
-        for field in required_fields:
-            if field not in metadata or not metadata[field]:
-                return False
-        return True
+        return all(field in metadata for field in required_fields)
     
     def _generate_embeddings(self) -> None:
-        """Generate embeddings for all loaded snippets."""
+        """Generate embeddings for all loaded snippets using ErrorHandler."""
         if not self.snippets:
+            log("No snippets to generate embeddings for", prefix="ScrollRetriever")
             return
         
-        log("Generating embeddings...")
-        start_time = time.time()
+        def generate_embeddings():
+            if self.use_sentence_transformers:
+                self._generate_sentence_transformer_embeddings()
+            else:
+                self._generate_simple_embeddings()
         
-        if self.use_sentence_transformers:
-            self._generate_sentence_transformer_embeddings()
-        else:
-            self._generate_simple_embeddings()
-        
-        embed_time = time.time() - start_time
-        log(f"Generated embeddings in {embed_time:.2f}s")
+        ErrorHandler.handle_api_operation(generate_embeddings)
     
     def _generate_sentence_transformer_embeddings(self) -> None:
         """Generate embeddings using sentence-transformers."""
-        # Initialize model if not already done
-        if self.model is None:
-            self.model = SentenceTransformer(self.embedding_model_name)
+        log("Generating embeddings with sentence-transformers", prefix="ScrollRetriever")
         
-        # Prepare texts for embedding
-        texts = []
-        for snippet in self.snippets:
-            # Combine metadata and content for embedding
-            text_parts = [
-                snippet.content,
-                ' '.join(snippet.tags),
-                snippet.use_case,
-                snippet.tone,
-                snippet.industry,
-                snippet.role
-            ]
-            texts.append(' '.join(text_parts))
+        # Initialize model
+        self.model = SentenceTransformer(self.embedding_model_name)
+        
+        # Extract text content for embedding
+        texts = [snippet.content for snippet in self.snippets]
         
         # Generate embeddings
-        embeddings = self.model.encode(texts, show_progress_bar=True)
+        self.embeddings = self.model.encode(texts, show_progress_bar=True)
         
-        # Store embeddings
-        self.embeddings = embeddings
-        
-        # Attach embeddings to snippets
+        # Store embeddings with snippets
         for i, snippet in enumerate(self.snippets):
-            snippet.embedding = embeddings[i]
+            snippet.embedding = self.embeddings[i]
+        
+        log(f"Generated embeddings for {len(self.snippets)} snippets", prefix="ScrollRetriever")
     
     def _generate_simple_embeddings(self) -> None:
         """Generate embeddings using SimpleEmbeddings."""
-        # Prepare texts for embedding
-        texts = []
-        for snippet in self.snippets:
-            # Combine metadata and content for embedding
-            text_parts = [
-                snippet.content,
-                ' '.join(snippet.tags),
-                snippet.use_case,
-                snippet.tone,
-                snippet.industry,
-                snippet.role
-            ]
-            texts.append(' '.join(text_parts))
+        log("Generating embeddings with SimpleEmbeddings", prefix="ScrollRetriever")
         
-        # Initialize and fit SimpleEmbeddings
-        self.simple_embeddings = SimpleEmbeddings(n_components=128, max_features=2000)
-        embeddings = self.simple_embeddings.fit(texts)
+        # Initialize SimpleEmbeddings
+        self.simple_embeddings = SimpleEmbeddings()
         
-        # Store embeddings
-        self.embeddings = embeddings
+        # Extract text content for embedding
+        texts = [snippet.content for snippet in self.snippets]
         
-        # Attach embeddings to snippets
+        # Generate embeddings
+        self.embeddings = self.simple_embeddings.embed_documents(texts)
+        
+        # Store embeddings with snippets
         for i, snippet in enumerate(self.snippets):
-            snippet.embedding = embeddings[i]
+            snippet.embedding = self.embeddings[i]
+        
+        log(f"Generated embeddings for {len(self.snippets)} snippets", prefix="ScrollRetriever")
     
     def query(self, 
               query_text: str, 
@@ -358,146 +258,67 @@ class ScrollRetriever:
               min_similarity: float = 0.3,
               filters: Optional[Dict[str, Any]] = None) -> List[Tuple[EmailSnippet, float]]:
         """
-        Query for relevant snippets using semantic search.
+        Query snippets using semantic search with ErrorHandler.
         
         Args:
-            query_text: Query text to search for
+            query_text: The query text
             top_k: Number of top results to return
             min_similarity: Minimum similarity threshold
-            filters: Optional filters for metadata (e.g., {'tone': 'Professional'})
+            filters: Optional filters to apply
             
         Returns:
             List of (snippet, similarity_score) tuples
         """
-        log(f"Querying snippets for: '{query_text}' (top_k={top_k}, min_similarity={min_similarity}, filters={filters})")
-        
-        # Ensure snippets are loaded
         if not self._loaded:
-            log("Snippets not loaded, loading now...")
             self.load_snippets()
         
         if not self.snippets:
-            log("No snippets available for query")
             return []
         
-        log(f"Loaded {len(self.snippets)} snippets for query")
-        
-        # Generate query embedding
-        query_embedding = self._get_query_embedding(query_text)
-        log(f"Generated query embedding with shape: {query_embedding.shape}")
-        
-        # Calculate similarities
-        if self.use_sentence_transformers and self.model:
-            log("Using sentence-transformers for similarity calculation")
-            similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-        elif self.simple_embeddings:
-            log("Using SimpleEmbeddings for similarity calculation")
-            similarities = self.simple_embeddings.similarity(query_embedding, self.embeddings)
-        else:
-            log("Using TF-IDF fallback for similarity calculation")
-            similarities = self._calculate_tfidf_similarity(query_text)
-        
-        log(f"Calculated similarities: min={similarities.min():.3f}, max={similarities.max():.3f}, mean={similarities.mean():.3f}")
-        
-        # Apply filters if provided
-        filtered_snippets = []
-        filtered_similarities = []
-        
-        for i, snippet in enumerate(self.snippets):
-            similarity = similarities[i]
+        def perform_query():
+            # Get query embedding
+            query_embedding = self._get_query_embedding(query_text)
             
-            # Apply similarity threshold
-            if similarity < min_similarity:
-                log(f"Snippet '{snippet.id}' filtered out due to low similarity: {similarity:.3f} < {min_similarity}")
-                continue
+            # Calculate similarities
+            similarities = self._calculate_similarities(query_embedding)
             
-            # Apply metadata filters
-            if filters and not self._matches_filters(snippet, filters):
-                log(f"Snippet '{snippet.id}' filtered out due to metadata filters: {filters}")
-                continue
+            # Apply filters and threshold
+            results = []
+            for i, similarity in enumerate(similarities):
+                if similarity >= min_similarity:
+                    snippet = self.snippets[i]
+                    if not filters or self._matches_filters(snippet, filters):
+                        results.append((snippet, similarity))
             
-            filtered_snippets.append(snippet)
-            filtered_similarities.append(similarity)
-            log(f"Snippet '{snippet.id}' passed filters: similarity={similarity:.3f}, use_case='{snippet.use_case}', industry='{snippet.industry}', role='{snippet.role}'")
+            # Sort by similarity and return top_k
+            results.sort(key=lambda x: x[1], reverse=True)
+            return results[:top_k]
         
-        log(f"After filtering: {len(filtered_snippets)} snippets remain")
-        
-        # Sort by similarity and return top_k
-        sorted_pairs = sorted(
-            zip(filtered_snippets, filtered_similarities),
-            key=lambda x: x[1],
-            reverse=True
-        )
-        
-        result = sorted_pairs[:top_k]
-        log(f"Returning {len(result)} top results")
-        
-        for i, (snippet, score) in enumerate(result):
-            log(f"Result {i+1}: '{snippet.id}' (score={score:.3f}) - {snippet.use_case} for {snippet.industry} {snippet.role}")
-        
-        return result
+        return ErrorHandler.handle_api_operation(perform_query) or []
     
     def _get_query_embedding(self, query_text: str) -> np.ndarray:
         """Get embedding for query text."""
         if self.use_sentence_transformers and self.model:
             return self.model.encode([query_text])[0]
         elif self.simple_embeddings:
-            return self.simple_embeddings.transform([query_text])[0]
+            return self.simple_embeddings.embed_documents([query_text])[0]
         else:
-            # Fallback: return zero vector
-            return np.zeros(self.embeddings.shape[1] if self.embeddings is not None else 1000)
+            raise ValueError("No embedding model available")
     
-    def _calculate_tfidf_similarity(self, query_text: str) -> np.ndarray:
-        """Calculate TF-IDF similarity as fallback."""
-        if self.vectorizer is None:
-            # Create vectorizer from snippets
-            texts = []
-            for snippet in self.snippets:
-                text_parts = [
-                    snippet.content,
-                    ' '.join(snippet.tags),
-                    snippet.use_case,
-                    snippet.tone,
-                    snippet.industry,
-                    snippet.role
-                ]
-                texts.append(' '.join(text_parts))
-            
-            self.vectorizer = TfidfVectorizer(
-                max_features=1000,
-                stop_words='english',
-                ngram_range=(1, 2),
-                min_df=1,
-                max_df=0.9
-            )
-            self.vectorizer.fit(texts)
+    def _calculate_similarities(self, query_embedding: np.ndarray) -> np.ndarray:
+        """Calculate similarities between query and all snippets."""
+        if self.embeddings is None:
+            return np.zeros(len(self.snippets))
         
-        # Transform query and calculate similarity
-        query_vector = self.vectorizer.transform([query_text])
-        snippet_vectors = self.vectorizer.transform([
-            ' '.join([
-                snippet.content,
-                ' '.join(snippet.tags),
-                snippet.use_case,
-                snippet.tone,
-                snippet.industry,
-                snippet.role
-            ]) for snippet in self.snippets
-        ])
+        # Calculate cosine similarities
+        similarities = np.dot(self.embeddings, query_embedding) / (
+            np.linalg.norm(self.embeddings, axis=1) * np.linalg.norm(query_embedding)
+        )
         
-        return cosine_similarity(query_vector, snippet_vectors)[0]
+        return similarities
     
     def _matches_filters(self, snippet: EmailSnippet, filters: Dict[str, Any]) -> bool:
-        """
-        Check if snippet matches the given filters.
-        
-        Args:
-            snippet: Email snippet to check
-            filters: Filter criteria
-            
-        Returns:
-            True if snippet matches filters, False otherwise
-        """
+        """Check if snippet matches the given filters."""
         for key, value in filters.items():
             if hasattr(snippet, key):
                 snippet_value = getattr(snippet, key)
@@ -512,76 +333,40 @@ class ScrollRetriever:
                 snippet_value = snippet.metadata.get(key)
                 if snippet_value != value:
                     return False
-        
         return True
     
     def get_snippets_by_category(self, category: str) -> List[EmailSnippet]:
-        """
-        Get all snippets in a specific category.
-        
-        Args:
-            category: Category name (use_case, tone, industry, etc.)
-            
-        Returns:
-            List of snippets in the category
-        """
-        if not self._loaded:
-            self.load_snippets()
-        
-        return [s for s in self.snippets if getattr(s, category, None)]
+        """Get all snippets in a specific category."""
+        return [s for s in self.snippets if s.use_case == category]
     
     def get_snippet_by_id(self, snippet_id: str) -> Optional[EmailSnippet]:
-        """
-        Get a specific snippet by ID.
-        
-        Args:
-            snippet_id: Snippet ID
-            
-        Returns:
-            EmailSnippet object or None if not found
-        """
-        if not self._loaded:
-            self.load_snippets()
-        
+        """Get a specific snippet by ID."""
         for snippet in self.snippets:
             if snippet.id == snippet_id:
                 return snippet
         return None
     
     def get_statistics(self) -> Dict[str, Any]:
-        """
-        Get statistics about loaded snippets.
-        
-        Returns:
-            Dictionary with statistics
-        """
-        if not self._loaded:
-            self.load_snippets()
+        """Get statistics about loaded snippets."""
+        if not self.snippets:
+            return {"total_snippets": 0}
         
         stats = {
-            'total_snippets': len(self.snippets),
-            'industries': {},
-            'use_cases': {},
-            'tones': {},
-            'roles': {}
+            "total_snippets": len(self.snippets),
+            "categories": {},
+            "tones": {},
+            "industries": {},
+            "average_word_count": 0
         }
         
+        total_words = 0
         for snippet in self.snippets:
-            # Count industries
-            industry = snippet.industry
-            stats['industries'][industry] = stats['industries'].get(industry, 0) + 1
-            
-            # Count use cases
-            use_case = snippet.use_case
-            stats['use_cases'][use_case] = stats['use_cases'].get(use_case, 0) + 1
-            
-            # Count tones
-            tone = snippet.tone
-            stats['tones'][tone] = stats['tones'].get(tone, 0) + 1
-            
-            # Count roles
-            role = snippet.role
-            if role:
-                stats['roles'][role] = stats['roles'].get(role, 0) + 1
+            # Count categories
+            stats["categories"][snippet.use_case] = stats["categories"].get(snippet.use_case, 0) + 1
+            stats["tones"][snippet.tone] = stats["tones"].get(snippet.tone, 0) + 1
+            stats["industries"][snippet.industry] = stats["industries"].get(snippet.industry, 0) + 1
+            total_words += snippet.metadata.get('word_count', 0)
+        
+        stats["average_word_count"] = total_words / len(self.snippets)
         
         return stats 
