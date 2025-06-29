@@ -7,7 +7,15 @@ import sys
 import os
 sys.path.append('src')
 
-from services.scroll_retriever import ScrollRetriever
+import pytest
+import tempfile
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+import numpy as np
+from datetime import datetime
+import yaml
+
+from src.services.scroll_retriever import ScrollRetriever
 
 def test_queries():
     """Test the two example queries."""

@@ -107,7 +107,7 @@ Run tests to ensure everything works:
 python -m pytest
 ```
 
-## 📁 File Structure
+## 🗂️ File Structure
 
 ```
 hedwig/
@@ -125,7 +125,10 @@ hedwig/
 │   ├── utils/                  # Shared utilities and helpers
 │   │   ├── __init__.py
 │   │   ├── logging_utils.py
-│   │   └── text_utils.py
+│   │   ├── text_utils.py
+│   │   ├── file_utils.py
+│   │   ├── error_utils.py
+│   │   └── config_utils.py
 │   └── tests/                  # Test suite
 │       ├── conftest.py         # Pytest configuration
 │       ├── test_services/      # Service-specific tests
@@ -142,7 +145,7 @@ hedwig/
 │           ├── __init__.py
 │           ├── test_logging_utils.py
 │           └── test_text_utils.py
-├── scrolls/                    # Email templates and snippets
+├── scrolls/                    # Email templates and scrolls
 │   ├── README.md
 │   ├── entertainment/
 │   ├── general/
@@ -157,6 +160,18 @@ hedwig/
 ├── pyproject.toml             # Project configuration
 └── README.md
 ```
+
+## 🛠️ Utilities Overview
+
+Hedwig uses a set of shared utility modules to ensure DRY principles and clean separation of concerns:
+
+- **logging_utils.py**: Centralized logging with support for log levels and prefixes.
+- **text_utils.py**: Text normalization, whitespace cleanup, and special character handling.
+- **file_utils.py**: Safe file reading/writing, YAML frontmatter parsing, and file discovery.
+- **error_utils.py**: Standardized error handling, safe execution, and retry logic.
+- **config_utils.py**: Environment variable and config file loading, validation, and masking.
+
+These utilities are used throughout the services layer to ensure maintainability and code quality.
 
 ## 🔄 Migration from Old Interface
 

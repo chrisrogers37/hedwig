@@ -1,8 +1,14 @@
+"""
+Prompt Builder Service for Hedwig
+
+Builds intelligent prompts for the LLM by combining user context with relevant email templates.
+"""
+
+from ..utils.logging_utils import log
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from .llm_service import LLMService
-from ..utils.logging_utils import log
 from .chat_history_manager import ChatHistoryManager, MessageType
 from .scroll_retriever import ScrollRetriever, EmailSnippet
 from ..utils.text_utils import TextProcessor

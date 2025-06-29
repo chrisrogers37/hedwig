@@ -5,8 +5,10 @@ Tests for SimpleEmbeddings service.
 import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
-from services.simple_embeddings import SimpleEmbeddings, create_embeddings
-from utils.text_utils import TextProcessor
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+from src.services.simple_embeddings import SimpleEmbeddings, create_embeddings
+from src.utils.text_utils import TextProcessor
 
 
 class TestSimpleEmbeddings:

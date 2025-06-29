@@ -148,6 +148,8 @@ notes: "Effective for B2B SaaS companies"
 1. **Text Preprocessing**: Templates are processed using `TextProcessor` utility
 2. **Embedding Generation**: Semantic embeddings are created for similarity search
 3. **Metadata Filtering**: Optional filters can be applied by industry, tone, or use case
+4. **File Operations**: All file reading and YAML parsing is handled by `FileUtils` for safety and consistency
+5. **Error Handling**: All file and API errors are managed by the `ErrorHandler` utility for robust operation
 
 ### RAG Integration
 - Templates are retrieved during email generation
@@ -182,8 +184,9 @@ To add new templates:
 ## Technical Integration
 
 ### ScrollRetriever Service
-- Loads templates from markdown files
-- Parses YAML frontmatter metadata
+- Loads templates from markdown files using `FileUtils`
+- Parses YAML frontmatter metadata with `FileUtils`
+- Handles file and API errors with `ErrorHandler`
 - Generates semantic embeddings
 - Provides similarity search functionality
 
@@ -191,4 +194,12 @@ To add new templates:
 - Standardizes text preprocessing across templates
 - Ensures consistent embedding quality
 - Maintains important word boundaries (hyphens)
-- Normalizes whitespace and special characters 
+- Normalizes whitespace and special characters
+
+### FileUtils Utility
+- Handles all file I/O and YAML parsing for templates
+- Ensures safe, consistent file operations
+
+### ErrorHandler Utility
+- Manages file and API errors gracefully
+- Provides safe execution and retry logic 
