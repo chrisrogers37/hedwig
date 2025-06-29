@@ -51,14 +51,16 @@ class SimpleEmbeddings:
             stop_words='english',
             ngram_range=(1, 2),
             min_df=1,
-            max_df=0.9,
+            max_df=1.0,
             lowercase=True
         )
         
         tfidf_matrix = self.vectorizer.fit_transform(processed_texts)
+        n_features = tfidf_matrix.shape[1]
+        n_components = min(self.n_components, n_features) if n_features > 0 else 1
         
         # Reduce dimensionality using SVD for semantic compression
-        self.svd = TruncatedSVD(n_components=self.n_components, random_state=42)
+        self.svd = TruncatedSVD(n_components=n_components, random_state=42)
         embeddings = self.svd.fit_transform(tfidf_matrix)
         
         self._fitted = True

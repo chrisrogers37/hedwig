@@ -71,7 +71,7 @@ class PromptBuilder:
             snippets = self.scroll_retriever.query(
                 query_text=enhanced_context,
                 top_k=3,
-                min_similarity=0.4,  # Only use templates with good semantic match
+                min_similarity=0.75,  # Only use templates with good semantic match
                 filters=None  # Could add filters based on user preferences
             )
             
@@ -80,7 +80,7 @@ class PromptBuilder:
                 for snippet, score in snippets:
                     log(f"Template: {snippet.id} (score: {score:.3f}) - {snippet.use_case} for {snippet.industry}", prefix="PromptBuilder")
             else:
-                log("No relevant templates found above similarity threshold (0.4). Proceeding without template references.", prefix="PromptBuilder")
+                log("No relevant templates found above similarity threshold (0.75). Proceeding without template references.", prefix="PromptBuilder")
             
             self.last_retrieved_snippets = snippets
             return snippets
@@ -169,15 +169,10 @@ Now, write a completely original email for the user's specific situation, using 
         return rag_context
 
     def build_llm_prompt(self) -> str:
-        # Extract the latest user message as the main goal/request
-        user_messages = [msg for msg in self.chat_history_manager.messages if msg.type in (MessageType.INITIAL_PROMPT, MessageType.FEEDBACK)]
-        latest_user_message = user_messages[-1].content if user_messages else "[No user request provided]"
-
-        # Optionally include the latest feedback
-        latest_feedback = None
-        feedbacks = [msg for msg in self.chat_history_manager.messages if msg.type == MessageType.FEEDBACK]
-        if feedbacks:
-            latest_feedback = feedbacks[-1].content
+        # Get conversation context
+        latest_user_message = self._get_latest_user_message()
+        conversation_context = self._build_conversation_context()
+        previous_draft = self._get_previous_draft_context()
 
         # Profile info
         profile_lines = []
@@ -205,8 +200,15 @@ You are an expert assistant for writing outreach emails for any use case.
 User's main goal/request:
 {latest_user_message}
 """
-        if latest_feedback:
-            prompt += f"\nMost recent feedback from user:\n{latest_feedback}\n"
+        
+        # Add conversation context if available
+        if conversation_context:
+            prompt += f"\nConversation context:\n{conversation_context}\n"
+        
+        # Add previous draft context if this is feedback
+        if previous_draft:
+            prompt += f"\nPrevious draft to revise:\n{previous_draft}\n"
+        
         prompt += f"""
 
 User profile (if provided):
@@ -225,8 +227,58 @@ Instructions:
 - Be natural and avoid sounding AI-written if 'natural' tone is selected.
 - Use the reference templates above ONLY for style and structure guidance.
 - Write a completely original email tailored to the user's specific situation.
+- If this is feedback on a previous draft, incorporate the feedback while maintaining the core message.
 """
         return prompt
+
+    def _get_latest_user_message(self) -> str:
+        """Get the latest user message (initial prompt or feedback)."""
+        user_messages = [msg for msg in self.chat_history_manager.messages 
+                        if msg.type in (MessageType.INITIAL_PROMPT, MessageType.FEEDBACK)]
+        return user_messages[-1].content if user_messages else "[No user request provided]"
+
+    def _build_conversation_context(self) -> str:
+        """Build conversation context for the prompt."""
+        # Get recent messages (last 5 for context)
+        recent_messages = self.chat_history_manager.get_recent_messages(count=5)
+        
+        if len(recent_messages) <= 1:
+            return ""
+        
+        context_parts = []
+        for message in recent_messages[:-1]:  # Exclude the latest message
+            if message.type == MessageType.INITIAL_PROMPT:
+                context_parts.append(f"Original request: {message.content}")
+            elif message.type == MessageType.FEEDBACK:
+                context_parts.append(f"Previous feedback: {message.content}")
+            elif message.type in (MessageType.DRAFT, MessageType.REVISED_DRAFT):
+                # Don't include full drafts in context, just mention they existed
+                context_parts.append("Previous draft was generated")
+        
+        return "\n".join(context_parts) if context_parts else ""
+
+    def _get_previous_draft_context(self) -> str:
+        """Get the previous draft if this is a feedback scenario."""
+        latest_user_message = self._get_latest_user_message()
+        
+        # Check if this looks like feedback
+        feedback_keywords = [
+            'do not', 'don\'t', 'avoid', 'remove', 'change', 'modify', 'edit',
+            'sounds', 'sounding', 'fake', 'ai-written', 'flair', 'natural',
+            'tone', 'style', 'language', 'word', 'phrase', 'sentence',
+            'too', 'very', 'extremely', 'overly', 'instead', 'rather',
+            'make it', 'rewrite', 'rephrase', 'adjust', 'tweak'
+        ]
+        
+        input_lower = latest_user_message.lower()
+        is_feedback = any(keyword in input_lower for keyword in feedback_keywords)
+        
+        if is_feedback:
+            latest_draft = self.chat_history_manager.get_latest_draft()
+            if latest_draft:
+                return latest_draft.content
+        
+        return ""
 
     def generate_draft(self):
         prompt = self.build_llm_prompt()

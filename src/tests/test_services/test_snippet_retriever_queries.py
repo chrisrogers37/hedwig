@@ -32,7 +32,7 @@ def test_queries():
     print(f"Query: {query1}")
     print()
     
-    results1 = retriever.query(query1, top_k=3, min_similarity=0.3)
+    results1 = retriever.query(query1, top_k=3, min_similarity=0.75)
     if results1:
         for i, (snippet, score) in enumerate(results1, 1):
             print(f'{i}. Score: {score:.3f}')
@@ -51,7 +51,7 @@ def test_queries():
     print(f"Query: {query2}")
     print()
     
-    results2 = retriever.query(query2, top_k=3, min_similarity=0.3)
+    results2 = retriever.query(query2, top_k=3, min_similarity=0.75)
     if results2:
         for i, (snippet, score) in enumerate(results2, 1):
             print(f'{i}. Score: {score:.3f}')
@@ -70,7 +70,7 @@ def test_queries():
     print(f"Query: {query3}")
     print()
     
-    results3 = retriever.query(query3, top_k=3, min_similarity=0.3)
+    results3 = retriever.query(query3, top_k=3, min_similarity=0.75)
     if results3:
         for i, (snippet, score) in enumerate(results3, 1):
             print(f'{i}. Score: {score:.3f}')

@@ -82,7 +82,7 @@ def test_retrieve_relevant_snippets_success(prompt_builder_with_rag, mock_scroll
     mock_scroll_retriever.query.assert_called_once_with(
         query_text="test context",
         top_k=3,
-        min_similarity=0.4,
+        min_similarity=0.75,
         filters=None
     )
 
@@ -215,7 +215,8 @@ def test_build_llm_prompt_with_conversation_history(prompt_builder, chat_history
     
     assert "expert assistant for writing outreach emails for any use case" in prompt
     assert "Make it more professional" in prompt  # Latest feedback should be included
-    assert "I need help writing an outreach email" not in prompt  # Only latest user message is used
+    assert "I need help writing an outreach email" in prompt  # Original request should be in context
+    assert "Original request:" in prompt  # Should show conversation context
 
 def test_build_llm_prompt_with_profile(prompt_builder):
     """Test building prompt with user profile information."""
@@ -242,7 +243,8 @@ def test_build_llm_prompt_latest_user_message_only(prompt_builder, chat_history_
     prompt = prompt_builder.build_llm_prompt()
     
     assert "Second request" in prompt  # Latest user message
-    assert "First request" not in prompt  # Earlier user message should not be included
+    assert "First request" in prompt  # Previous request should be in context
+    assert "Original request:" in prompt  # Should show conversation context
 
 def test_build_llm_prompt_with_feedback(prompt_builder, chat_history_manager):
     """Test building prompt with feedback in the conversation."""
@@ -254,7 +256,8 @@ def test_build_llm_prompt_with_feedback(prompt_builder, chat_history_manager):
     prompt = prompt_builder.build_llm_prompt()
     
     assert "Make it more concise" in prompt  # Latest feedback should be included
-    assert "Most recent feedback from user:" in prompt
+    assert "Previous draft to revise:" in prompt  # Should include previous draft context
+    assert "Here's a draft..." in prompt  # Should include the actual draft content
 
 def test_build_llm_prompt_natural_tone(prompt_builder, mock_config):
     """Test building prompt with natural tone."""
