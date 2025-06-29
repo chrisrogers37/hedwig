@@ -1,0 +1,63 @@
+metadata:
+  tags: ["cold", "entertainment", "band", "gig", "music", "casual", "B2B"]
+  use_case: "Gig Outreach"
+  tone: "Casual"
+  industry: "Entertainment"
+  role: "Band"
+  difficulty: "Beginner"
+  author: "Hedwig Team"
+  date_created: "2024-01-01"
+  success_rate: 0.74
+  notes: "Effective for bands reaching out to venues for live gigs"
+
+template:
+  subject: "Band Gig Inquiry"
+  content: |
+    Hi {{recipient_name}},
+
+    I'm {{sender_name}}, and I play with {{band_name}}, an {{genre}} band based in {{location}}.
+
+    We've been following the shows at {{venue_name}} and love the energy your venue brings to the local music scene. Our recent gigs at {{other_venues}} have been a blast, and we've built a solid following in the area.
+
+    We'd love to bring our live set to {{venue_name}} and help make your next gig night a success. We can provide all our own gear and promote the show to our fans.
+
+    Would you be open to chatting about booking us for an upcoming date? I can send over our EPK and some live recordings if you're interested.
+
+    Thanks for your time, and hope to hear from you soon!
+
+    Best,
+    {{sender_name}}
+    {{band_name}}
+    {{phone_number}}
+    {{website_or_epk}}
+
+guidance:
+  avoid_phrases:
+    - "soaking in the great vibes"
+    - "making waves"
+    - "huge admirer"
+    - "incredible atmosphere"
+    - "keen to"
+    - "excited about"
+    - "thrilled to"
+    - "getting people moving"
+    - "bringing the energy"
+    - "epic nights"
+    - "awesome crowds"
+    - "perfect fit for the vibes"
+  
+  preferred_phrases:
+    - "I've been to your venue"
+    - "I like the crowd"
+    - "I want to play there"
+    - "I'm interested in"
+    - "I'd like to"
+    - "I can share my music"
+    - "Let me know if you want to talk"
+    - "Here's my contact info"
+  
+  writing_tips:
+    - "Write like a real person in the scene, not like someone trying to impress"
+    - "Use simple, direct statements instead of flowery descriptions"
+    - "Don't use industry buzzwords or clichés"
+    - "Be authentic and straightforward about what you want" 

@@ -10,33 +10,33 @@ scrolls/
 ├── entertainment/          # Entertainment industry templates
 │   ├── band/
 │   │   └── to_venue/
-│   │       └── gig_outreach.md
+│   │       └── gig_outreach.yaml
 │   │   └── dj/
 │   │       └── to_venue/
-│   │           └── gig_outreach.md
+│   │           └── gig_outreach.yaml
 ├── general/               # General business templates
 │   ├── churn_recovery/
-│   │   └── win_back_campaign.md
+│   │   └── win_back_campaign.yaml
 │   ├── event_invitation/
-│   │   └── webinar_invite.md
+│   │   └── webinar_invite.yaml
 │   ├── follow_up/
-│   │   └── value_add_followup.md
+│   │   └── value_add_followup.yaml
 │   ├── introduction/
-│   │   └── conference_connection.md
+│   │   └── conference_connection.yaml
 │   └── partnership/
-│       └── strategic_alliance.md
+│       └── strategic_alliance.yaml
 ├── healthcare/            # Healthcare industry templates
 │   └── sales_rep/
 │       ├── to_doctor/
-│       │   └── saas_outreach.md
+│       │   └── saas_outreach.yaml
 │       └── to_patient/
-│           └── saas_outreach.md
+│           └── saas_outreach.yaml
 └── tech/                  # Technology industry templates
     └── sales_rep/
         ├── to_enterprise/
-        │   └── saas_outreach.md
+        │   └── saas_outreach.yaml
         └── to_startup/
-            └── saas_outreach.md
+            └── saas_outreach.yaml
 ```
 
 ## Template Format

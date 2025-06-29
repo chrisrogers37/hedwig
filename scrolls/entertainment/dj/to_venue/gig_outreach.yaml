@@ -1,0 +1,70 @@
+metadata:
+  tags: ["cold", "entertainment", "dj", "gig", "music", "casual", "B2B", "venue", "club", "night life", "booking"]
+  use_case: "Gig Outreach"
+  tone: "Casual"
+  industry: "Entertainment"
+  role: "DJ"
+  difficulty: "Beginner"
+  author: "Hedwig Team"
+  date_created: "2025-06-29"
+  success_rate: 0.75
+  notes: "Effective for DJs reaching out to venues for sets"
+
+template:
+  subject: "DJ Gig Inquiry"
+  content: |
+    Hi {{recipient_name}},
+
+    I hope this note finds you well. I'm {{sender_name}}, a DJ that plays {{music_style}} based in {{location}}.
+
+    I've been to {{venue_name}} several times over the last few years and I am a big fan. I love the crowd and the vibe of the venue. I have been DJing for {{experience_duration}} in {{location}} and have played at similar spots like {{similar_venues}}. I would love to discuss potentially playing at {{venue_name}}.
+
+    If you're interested, I'm down to talk more at your earliest convenience. Please let me know if you'd like me to share links to sets or any other details.
+
+    Looking forward to hearing from you!
+
+    Best regards,
+    {{sender_name}}
+    {{phone_number}}
+    {{website_or_soundcloud}}
+
+guidance:
+  avoid_phrases:
+    - "soaking in the great vibes"
+    - "making waves"
+    - "huge admirer"
+    - "incredible atmosphere"
+    - "keen to"
+    - "spinning"
+    - "excited about"
+    - "thrilled to"
+    - "getting people moving"
+    - "bringing the energy"
+    - "epic nights"
+    - "awesome crowds"
+    - "perfect fit for the vibes"
+    - "your regulars"
+    - "bringing my sets to your venue"
+    - "bring to your lineup"
+  
+  preferred_phrases:
+    - "I've been to your venue"
+    - "I like the crowd"
+    - "I want to play there"
+    - "I'm interested in"
+    - "I'd like to"
+    - "I can share my music"
+    - "Let me know if you want to talk"
+    - "Here's my contact info"
+    - "playing a set"
+    - "share some sets/mixes with you"
+  
+  writing_tips:
+    - "Write like a real person in the scene, not like someone trying to impress"
+    - "Use simple, direct statements instead of flowery descriptions"
+    - "Don't try to use industry buzzwords or clichés"
+    - "Be authentic and straightforward about what you want"
+    - "Do not self aggrandize your skills or experience, just be low-key and straight forward"
+    - "Do not use em dashes"
+    - "Simple, casual, and direct is best!"
+    - "Signature should be last"

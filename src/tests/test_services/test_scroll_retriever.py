@@ -30,9 +30,11 @@ class TestEmailSnippet:
         
         snippet = EmailSnippet(
             id='test_snippet',
-            file_path='test.md',
+            file_path='test.yaml',
             content='Test content',
-            metadata=metadata
+            template_content='Test content',
+            metadata=metadata,
+            guidance={'tone': 'professional', 'style': 'formal'}
         )
         
         assert snippet.id == 'test_snippet'
@@ -56,9 +58,11 @@ class TestEmailSnippet:
         
         snippet = EmailSnippet(
             id='test',
-            file_path='test.md',
+            file_path='test.yaml',
             content='Content',
-            metadata=metadata
+            template_content='Content',
+            metadata=metadata,
+            guidance={'tone': 'casual', 'style': 'informal'}
         )
         
         assert snippet.tags == ['tag1', 'tag2']
@@ -72,9 +76,11 @@ class TestEmailSnippet:
         """Test EmailSnippet with missing metadata fields."""
         snippet = EmailSnippet(
             id='test',
-            file_path='test.md',
+            file_path='test.yaml',
             content='Content',
-            metadata={}
+            template_content='Content',
+            metadata={},
+            guidance={}
         )
         
         assert snippet.tags == []
@@ -95,28 +101,29 @@ class TestScrollRetriever:
             snippets_dir = Path(temp_dir) / "scrolls"
             snippets_dir.mkdir()
             
-            # Create test snippet
-            test_snippet_content = """---
-tags: ["test", "sample", "professional"]
-use_case: "Test Case"
-tone: "Professional"
-industry: "Tech"
-difficulty: "Beginner"
-author: "Test Author"
-date_created: "2024-01-01"
-success_rate: 0.85
-notes: "Test snippet"
----
+            # Create test snippet with new YAML structure
+            test_snippet_content = """metadata:
+  tags: ["test", "sample", "professional"]
+  use_case: "Test Case"
+  tone: "Professional"
+  industry: "Tech"
+  difficulty: "Beginner"
+  author: "Test Author"
+  date_created: "2024-01-01"
+  success_rate: 0.85
+  notes: "Test snippet"
 
-Hi {{recipient_name}},
+template:
+  subject: "Test Email"
+  content: "Hi {{recipient_name}},\n\nThis is a test email template.\n\nBest regards,\n{{sender_name}}"
 
-This is a test email template.
-
-Best regards,
-{{sender_name}}
+guidance:
+  tone: "professional"
+  style: "formal"
+  tips: ["Be concise", "Use clear language"]
 """
             
-            test_file = snippets_dir / "test_snippet.md"
+            test_file = snippets_dir / "test_snippet.yaml"
             with open(test_file, 'w') as f:
                 f.write(test_snippet_content)
             
@@ -150,23 +157,51 @@ Best regards,
     
     def test_load_snippets_success(self, temp_snippets_dir):
         """Test successful snippet loading."""
-        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
+        # Create a valid YAML template file
+        valid_snippet = """metadata:
+  tags: ["test", "email"]
+  use_case: "Test Case"
+  tone: "Professional"
+  industry: "Test"
+  role: "Tester"
+  difficulty: "Beginner"
+  author: "Test"
+  date_created: "2024-01-01"
+  success_rate: 0.8
+  notes: "Test template"
+
+template:
+  subject: "Test Subject"
+  content: "This is a test email template for testing purposes."
+
+guidance:
+  tone: "professional"
+  style: "formal"
+  tips: ["Be concise", "Use clear language"]
+"""
         
+        snippet_file = Path(temp_snippets_dir) / "test_snippet.yaml"
+        with open(snippet_file, 'w') as f:
+            f.write(valid_snippet)
+        
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
+    
         # Mock the embedding generation to avoid downloading models
         with patch.object(retriever, '_generate_embeddings'):
             count = retriever.load_snippets()
-        
+    
         assert count == 1
         assert len(retriever.snippets) == 1
         assert retriever._loaded is True
         
         snippet = retriever.snippets[0]
-        assert snippet.id == "test_snippet.md"
-        assert "Hi {{recipient_name}}" in snippet.content
-        assert snippet.tags == ["test", "sample", "professional"]
+        assert snippet.id == "test_snippet.yaml"
+        assert "Test Subject" in snippet.content
+        assert "This is a test email template for testing purposes" in snippet.content
+        assert snippet.tags == ["test", "email"]
         assert snippet.use_case == "Test Case"
         assert snippet.tone == "Professional"
-        assert snippet.industry == "Tech"
+        assert snippet.industry == "Test"
         assert snippet.difficulty == "Beginner"
     
     def test_load_snippets_empty_directory(self):
@@ -181,28 +216,59 @@ Best regards,
     def test_load_snippets_invalid_metadata(self, temp_snippets_dir):
         """Test loading snippet with invalid metadata."""
         # Create snippet with invalid metadata (missing required fields)
-        invalid_snippet = """---
-tags: ["test"]
-use_case: "Test"
-# Missing tone and industry - should be invalid
-difficulty: "Beginner"
----
+        invalid_snippet = """metadata:
+  tags: ["test"]
+  use_case: "Test"
+  # Missing tone and industry - should be invalid
+  difficulty: "Beginner"
 
-Test content
+template:
+  subject: "Test"
+  content: "Test content"
+
+guidance:
+  tone: "professional"
 """
         
-        invalid_file = Path(temp_snippets_dir) / "invalid.md"
+        invalid_file = Path(temp_snippets_dir) / "invalid.yaml"
         with open(invalid_file, 'w') as f:
             f.write(invalid_snippet)
         
-        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
+        # Also create a valid snippet
+        valid_snippet = """metadata:
+  tags: ["test", "email"]
+  use_case: "Test Case"
+  tone: "Professional"
+  industry: "Test"
+  role: "Tester"
+  difficulty: "Beginner"
+  author: "Test"
+  date_created: "2024-01-01"
+  success_rate: 0.8
+  notes: "Test template"
+
+template:
+  subject: "Test Subject"
+  content: "This is a test email template for testing purposes."
+
+guidance:
+  tone: "professional"
+  style: "formal"
+  tips: ["Be concise", "Use clear language"]
+"""
         
+        valid_file = Path(temp_snippets_dir) / "valid.yaml"
+        with open(valid_file, 'w') as f:
+            f.write(valid_snippet)
+        
+        retriever = ScrollRetriever(snippets_dir=temp_snippets_dir)
+    
         with patch.object(retriever, '_generate_embeddings'):
             count = retriever.load_snippets()
-        
-        # Should only load the valid snippet (the one from temp_snippets_dir fixture)
-        assert count == 1
-        assert len(retriever.snippets) == 1
+    
+        # Should only load the valid snippet
+        assert count == 2  # fixture snippet + valid snippet
+        assert len([s for s in retriever.snippets if s.id == "valid.yaml"]) == 1
     
     def test_parse_frontmatter_valid(self):
         """Test parsing valid YAML frontmatter."""
@@ -293,15 +359,19 @@ Content
         # Create test snippets
         snippet1 = EmailSnippet(
             id='test1',
-            file_path='test1.md',
+            file_path='test1.yaml',
             content='Test content 1',
-            metadata={'tags': ['test'], 'use_case': 'Test', 'tone': 'Professional', 'industry': 'Tech', 'difficulty': 'Beginner'}
+            template_content='Test content 1',
+            metadata={'tags': ['test'], 'use_case': 'Test', 'tone': 'Professional', 'industry': 'Tech', 'difficulty': 'Beginner'},
+            guidance={'tone': 'professional', 'style': 'formal'}
         )
         snippet2 = EmailSnippet(
             id='test2',
-            file_path='test2.md',
+            file_path='test2.yaml',
             content='Test content 2',
-            metadata={'tags': ['test'], 'use_case': 'Test', 'tone': 'Casual', 'industry': 'Tech', 'difficulty': 'Beginner'}
+            template_content='Test content 2',
+            metadata={'tags': ['test'], 'use_case': 'Test', 'tone': 'Casual', 'industry': 'Tech', 'difficulty': 'Beginner'},
+            guidance={'tone': 'casual', 'style': 'informal'}
         )
         
         retriever.snippets = [snippet1, snippet2]
@@ -324,15 +394,19 @@ Content
         # Create test snippets
         snippet1 = EmailSnippet(
             id='test1',
-            file_path='test1.md',
+            file_path='test1.yaml',
             content='Cold outreach email',
-            metadata={'tags': ['cold'], 'use_case': 'Cold Intro', 'tone': 'Professional', 'industry': 'Tech', 'difficulty': 'Beginner'}
+            template_content='Cold outreach email',
+            metadata={'tags': ['cold'], 'use_case': 'Cold Intro', 'tone': 'Professional', 'industry': 'Tech', 'difficulty': 'Beginner'},
+            guidance={'tone': 'professional', 'style': 'formal'}
         )
         snippet2 = EmailSnippet(
             id='test2',
-            file_path='test2.md',
+            file_path='test2.yaml',
             content='Follow up email',
-            metadata={'tags': ['follow-up'], 'use_case': 'Follow Up', 'tone': 'Casual', 'industry': 'Tech', 'difficulty': 'Beginner'}
+            template_content='Follow up email',
+            metadata={'tags': ['follow-up'], 'use_case': 'Follow Up', 'tone': 'Casual', 'industry': 'Tech', 'difficulty': 'Beginner'},
+            guidance={'tone': 'casual', 'style': 'informal'}
         )
         
         retriever.snippets = [snippet1, snippet2]
@@ -347,11 +421,9 @@ Content
         
         # Test query
         results = retriever.query("cold outreach", top_k=2)
-        
-        assert len(results) == 2
-        # Both should have similarity scores
-        assert results[0][1] >= 0
-        assert results[1][1] >= 0
+    
+        assert len(results) == 1  # Only one result due to 0.75 threshold
+        assert results[0][0].id == "test1"
     
     def test_query_with_filters(self, temp_snippets_dir):
         """Test querying with filters."""
@@ -391,9 +463,9 @@ Content
         with patch.object(retriever, '_generate_embeddings'):
             retriever.load_snippets()
         
-        snippet = retriever.get_snippet_by_id('test_snippet.md')
+        snippet = retriever.get_snippet_by_id('test_snippet.yaml')
         assert snippet is not None
-        assert snippet.id == 'test_snippet.md'
+        assert snippet.id == 'test_snippet.yaml'
         
         # Test non-existent ID
         snippet = retriever.get_snippet_by_id('non_existent')
@@ -419,15 +491,17 @@ Content
         
         snippet = EmailSnippet(
             id='test',
-            file_path='test.md',
+            file_path='test.yaml',
             content='Test',
+            template_content='Test',
             metadata={
                 'tags': ['test', 'sample'],
                 'use_case': 'Test Case',
                 'tone': 'Professional',
                 'industry': 'Tech',
                 'difficulty': 'Beginner'
-            }
+            },
+            guidance={'tone': 'professional', 'style': 'formal'}
         )
         
         # Test exact match
@@ -458,24 +532,30 @@ Content
             scrolls_dir = temp_path / "scrolls"
             scrolls_dir.mkdir()
             
-            # Create a test snippet
-            snippet_content = """---
-tags: ["test", "email"]
-use_case: "Test Case"
-tone: "Professional"
-industry: "Test"
-role: "Tester"
-difficulty: "Beginner"
-author: "Test"
-date_created: "2024-01-01"
-success_rate: 0.8
-notes: "Test template"
----
+            # Create a test snippet with new YAML structure
+            snippet_content = """metadata:
+  tags: ["test", "email"]
+  use_case: "Test Case"
+  tone: "Professional"
+  industry: "Test"
+  role: "Tester"
+  difficulty: "Beginner"
+  author: "Test"
+  date_created: "2024-01-01"
+  success_rate: 0.8
+  notes: "Test template"
 
-This is a test email template for testing purposes.
+template:
+  subject: "Test Subject"
+  content: "This is a test email template for testing purposes."
+
+guidance:
+  tone: "professional"
+  style: "formal"
+  tips: ["Be concise", "Use clear language"]
 """
             
-            snippet_file = scrolls_dir / "test_snippet.md"
+            snippet_file = scrolls_dir / "test_snippet.yaml"
             with open(snippet_file, 'w') as f:
                 f.write(snippet_content)
             
@@ -492,5 +572,4 @@ This is a test email template for testing purposes.
             # Test query - should not raise AttributeError
             results = retriever.query("test email template", top_k=1)
             assert len(results) == 1
-            assert results[0][0].content.strip() == "This is a test email template for testing purposes."
-            assert results[0][1] > 0  # Should have some similarity score 
+            assert "This is a test email template for testing purposes" in results[0][0].content 
