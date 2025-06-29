@@ -1,8 +1,10 @@
+import pytest
 import os
 import tempfile
 import json
-import pytest
-from services.config_service import AppConfig
+from unittest.mock import patch, MagicMock
+from pathlib import Path
+from src.services.config_service import AppConfig
 
 def test_defaults():
     # Save original values

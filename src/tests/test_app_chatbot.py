@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Demo script for the Hedwig chatbot interface.
-This demonstrates the conversational flow without requiring Streamlit.
+Backend/dev/test harness for app_chatbot logic.
+
+This script allows you to run and debug the chatbot backend logic (services, prompt building, RAG, etc.) without the Streamlit UI. Useful for development, quick iteration, and log inspection.
 """
 
 import sys

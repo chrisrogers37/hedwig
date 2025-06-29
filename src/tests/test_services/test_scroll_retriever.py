@@ -8,9 +8,11 @@ import os
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 import numpy as np
+from datetime import datetime
+import yaml
 
-from services.scroll_retriever import ScrollRetriever, EmailSnippet
-from utils.file_utils import FileUtils
+from src.services.scroll_retriever import ScrollRetriever, EmailSnippet
+from src.utils.file_utils import FileUtils
 
 
 class TestEmailSnippet:
@@ -305,7 +307,7 @@ Content
         retriever.snippets = [snippet1, snippet2]
         
         # Patch SimpleEmbeddings to avoid n_components error
-        with patch('services.scroll_retriever.SimpleEmbeddings') as MockEmb:
+        with patch('src.services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
             mock_instance.embed_documents.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever._generate_simple_embeddings()
@@ -337,7 +339,7 @@ Content
         retriever._loaded = True
         
         # Patch SimpleEmbeddings to avoid n_components error
-        with patch('services.scroll_retriever.SimpleEmbeddings') as MockEmb:
+        with patch('src.services.scroll_retriever.SimpleEmbeddings') as MockEmb:
             mock_instance = MockEmb.return_value
             mock_instance.embed_documents.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
             retriever._generate_simple_embeddings()

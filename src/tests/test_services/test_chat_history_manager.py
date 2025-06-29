@@ -5,7 +5,7 @@ Tests for ChatHistoryManager
 import pytest
 import time
 from unittest.mock import Mock, patch
-from services.chat_history_manager import (
+from src.services.chat_history_manager import (
     ChatHistoryManager, 
     ChatMessage, 
     MessageType

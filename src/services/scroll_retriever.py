@@ -1,21 +1,25 @@
 """
-Scroll Retriever Service
+Scroll Retriever Service for Hedwig
 
-This service provides RAG (Retrieval-Augmented Generation) capabilities by loading
-email templates from markdown files and providing semantic search functionality.
+Provides intelligent retrieval of relevant email templates (scrolls) based on user context.
+Uses semantic search to find the most appropriate templates for any given situation.
 """
 
+import os
 import time
-import numpy as np
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple, Optional
+import numpy as np
 from dataclasses import dataclass
+from datetime import datetime
+import yaml
+import re
 
 from .simple_embeddings import SimpleEmbeddings
 from ..utils.logging_utils import log
 from ..utils.file_utils import FileUtils
 from ..utils.error_utils import ErrorHandler
-from .config_service import AppConfig
+from .config_service import get_config
 from ..utils.text_utils import TextProcessor
 
 try:

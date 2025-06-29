@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from services.llm_service import LLMService
-from services.config_service import AppConfig
+from src.services.llm_service import LLMService
+from src.services.config_service import AppConfig
 import os
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def mock_config():
 @pytest.fixture
 def llm_service(mock_config):
     """Create an LLM service instance for testing."""
-    with patch('services.llm_service.openai.OpenAI') as mock_openai:
+    with patch('src.services.llm_service.openai.OpenAI') as mock_openai:
         # Mock the client and its chat.completions.create method
         mock_client = MagicMock()
         mock_openai.return_value = mock_client
@@ -26,7 +26,7 @@ def llm_service(mock_config):
 
 def test_llm_service_initialization(mock_config):
     """Test LLM service initialization with config."""
-    with patch('services.llm_service.openai.OpenAI') as mock_openai:
+    with patch('src.services.llm_service.openai.OpenAI') as mock_openai:
         mock_client = MagicMock()
         mock_openai.return_value = mock_client
         service = LLMService(mock_config)

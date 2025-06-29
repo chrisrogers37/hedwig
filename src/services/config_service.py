@@ -4,10 +4,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 import json
 
-from src.utils.logging_utils import log
-from src.utils.file_utils import FileUtils
-from src.utils.error_utils import ErrorHandler
-from src.utils.config_utils import ConfigUtils
+from ..utils.logging_utils import log
+from ..utils.file_utils import FileUtils
+from ..utils.error_utils import ErrorHandler
+from ..utils.config_utils import ConfigUtils
 
 class AppConfig:
     """
