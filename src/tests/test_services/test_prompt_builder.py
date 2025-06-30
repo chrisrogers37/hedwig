@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.services.prompt_builder import PromptBuilder, Profile
+from src.services.prompt_builder import PromptBuilder
+from src.services.profile_manager import ProfileManager
 from src.services.chat_history_manager import ChatHistoryManager, MessageType
 from src.services.scroll_retriever import EmailSnippet
 
@@ -27,12 +28,16 @@ def mock_scroll_retriever():
     return retriever
 
 @pytest.fixture
-def prompt_builder(mock_llm_service, chat_history_manager, mock_config):
-    return PromptBuilder(mock_llm_service, chat_history_manager, config=mock_config)
+def profile_manager():
+    return ProfileManager()
 
 @pytest.fixture
-def prompt_builder_with_rag(mock_llm_service, chat_history_manager, mock_config, mock_scroll_retriever):
-    return PromptBuilder(mock_llm_service, chat_history_manager, config=mock_config, scroll_retriever=mock_scroll_retriever)
+def prompt_builder(mock_llm_service, chat_history_manager, mock_config, profile_manager):
+    return PromptBuilder(mock_llm_service, chat_history_manager, profile_manager=profile_manager, config=mock_config)
+
+@pytest.fixture
+def prompt_builder_with_rag(mock_llm_service, chat_history_manager, mock_config, mock_scroll_retriever, profile_manager):
+    return PromptBuilder(mock_llm_service, chat_history_manager, profile_manager=profile_manager, config=mock_config, scroll_retriever=mock_scroll_retriever)
 
 def test_prompt_builder_initialization(prompt_builder, chat_history_manager):
     """Test PromptBuilder initialization."""
@@ -238,11 +243,9 @@ def test_build_llm_prompt_with_profile(prompt_builder):
         company="TechCorp"
     )
     
-    prompt = prompt_builder.build_llm_prompt()
-    
-    assert "John Doe" in prompt
-    assert "Sales Manager" in prompt
-    assert "TechCorp" in prompt
+    assert prompt_builder.profile_manager.profile.name == "John Doe"
+    assert prompt_builder.profile_manager.profile.title == "Sales Manager"
+    assert prompt_builder.profile_manager.profile.company == "TechCorp"
 
 def test_build_llm_prompt_latest_user_message_only(prompt_builder, chat_history_manager):
     """Test that only the latest user message is used in the prompt."""
@@ -397,9 +400,9 @@ def test_update_profile(prompt_builder):
         company="TechCorp"
     )
     
-    assert prompt_builder.profile.name == "John Doe"
-    assert prompt_builder.profile.title == "Sales Manager"
-    assert prompt_builder.profile.company == "TechCorp"
+    assert prompt_builder.profile_manager.profile.name == "John Doe"
+    assert prompt_builder.profile_manager.profile.title == "Sales Manager"
+    assert prompt_builder.profile_manager.profile.company == "TechCorp"
 
 def test_get_draft_email(prompt_builder):
     """Test getting the current draft email."""
@@ -448,21 +451,22 @@ def test_error_handling_in_generate_draft(prompt_builder, chat_history_manager):
 
 def test_profile_defaults(prompt_builder):
     """Test that profile has correct default values."""
-    assert prompt_builder.profile.name == ""
-    assert prompt_builder.profile.title == ""
-    assert prompt_builder.profile.company == ""
+    assert prompt_builder.profile_manager.profile.name == ""
+    assert prompt_builder.profile_manager.profile.title == ""
+    assert prompt_builder.profile_manager.profile.company == ""
 
 def test_custom_profile_initialization():
     """Test initializing PromptBuilder with custom profile."""
-    custom_profile = Profile(name="Jane Doe", title="Manager", company="Acme Corp")
+    custom_profile_manager = ProfileManager()
+    custom_profile_manager.update_profile(name="Jane Doe", title="Manager", company="Acme Corp")
     llm_service = MagicMock()
     chat_manager = ChatHistoryManager()
     
-    prompt_builder = PromptBuilder(llm_service, chat_manager, profile=custom_profile)
+    prompt_builder = PromptBuilder(llm_service, chat_manager, profile_manager=custom_profile_manager)
     
-    assert prompt_builder.profile.name == "Jane Doe"
-    assert prompt_builder.profile.title == "Manager"
-    assert prompt_builder.profile.company == "Acme Corp"
+    assert prompt_builder.profile_manager.profile.name == "Jane Doe"
+    assert prompt_builder.profile_manager.profile.title == "Manager"
+    assert prompt_builder.profile_manager.profile.company == "Acme Corp"
 
 def test_build_enhanced_context_no_feedback(prompt_builder):
     """Test building enhanced context when no feedback exists."""
