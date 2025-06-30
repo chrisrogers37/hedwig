@@ -10,9 +10,10 @@ sys.path.append(project_root)
 
 from src.services.config_service import AppConfig
 from src.services.llm_service import LLMService
-from src.services.prompt_builder import PromptBuilder, Profile
+from src.services.prompt_builder import PromptBuilder
 from src.services.chat_history_manager import ChatHistoryManager, MessageType
 from src.services.scroll_retriever import ScrollRetriever
+from src.services.profile_manager import ProfileManager
 from src.utils.logging_utils import log
 import pyperclip
 
@@ -227,6 +228,60 @@ def render_conversation_stats(chat_history_manager):
             st.sidebar.subheader("Conversation Summary")
             st.sidebar.write(chat_history_manager.summary)
 
+def render_profile_management():
+    """Render the profile management section in the sidebar."""
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("👤 Profile (Optional)")
+    
+    # Initialize ProfileManager in session state if not exists
+    if "profile_manager" not in st.session_state:
+        st.session_state.profile_manager = ProfileManager()
+    
+    profile_manager = st.session_state.profile_manager
+    profile = profile_manager.get_profile()
+    
+    # Profile form
+    with st.sidebar.form("profile_form"):
+        st.write("**Core Information**")
+        name = st.text_input("Name", value=profile.name, help="Your full name")
+        alias = st.text_input("Alias/Nickname", value=profile.alias, help="Preferred name or nickname")
+        title = st.text_input("Title", value=profile.title, help="Your job title or role")
+        company = st.text_input("Company", value=profile.company, help="Your company or organization")
+        
+        st.write("**Contact Information**")
+        email = st.text_input("Email", value=profile.email, help="Your email address")
+        phone = st.text_input("Phone", value=profile.phone, help="Your phone number")
+        website = st.text_input("Website", value=profile.website, help="Your website or LinkedIn")
+        
+        # Form submission
+        submitted = st.form_submit_button("💾 Save Profile")
+        if submitted:
+            profile_manager.update_profile(
+                name=name,
+                alias=alias,
+                title=title,
+                company=company,
+                email=email,
+                phone=phone,
+                website=website
+            )
+            st.sidebar.success("✅ Profile saved!")
+            st.rerun()
+    
+    # Profile summary and actions
+    if profile_manager.has_profile_info():
+        st.sidebar.markdown("---")
+        st.sidebar.write("**Current Profile**")
+        summary = profile_manager.get_profile_summary()
+        st.sidebar.info(summary)
+        
+        if st.sidebar.button("🗑️ Clear Profile"):
+            profile_manager.clear_profile()
+            st.sidebar.success("✅ Profile cleared!")
+            st.rerun()
+    
+    return profile_manager
+
 def main():
     """Main application function."""
     # Initialize services
@@ -237,6 +292,9 @@ def main():
     
     # Render configuration sidebar
     config = render_configuration_sidebar(config)
+    
+    # Render profile management (this initializes ProfileManager in session state)
+    profile_manager = render_profile_management()
     
     # Re-initialize services if config changed
     if config.validate():
@@ -252,12 +310,20 @@ def main():
                 chat_history_manager = st.session_state['chat_history_manager']
             
             if "prompt_builder" not in st.session_state:
-                prompt_builder = PromptBuilder(llm_service, chat_history_manager, scroll_retriever=scroll_retriever)
+                # Create PromptBuilder with ProfileManager
+                prompt_builder = PromptBuilder(
+                    llm_service, 
+                    chat_history_manager, 
+                    profile_manager=profile_manager,
+                    scroll_retriever=scroll_retriever
+                )
                 st.session_state['prompt_builder'] = prompt_builder
             else:
                 prompt_builder = st.session_state['prompt_builder']
                 # Update the LLM service in case it changed
                 prompt_builder.llm_service = llm_service
+                # Update the ProfileManager in case it changed
+                prompt_builder.profile_manager = profile_manager
                 # Reset cache if this is a new conversation (no messages)
                 if not chat_history_manager.messages:
                     prompt_builder.reset_conversation_cache()

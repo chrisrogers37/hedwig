@@ -11,24 +11,18 @@ from datetime import datetime
 from .llm_service import LLMService
 from .chat_history_manager import ChatHistoryManager, MessageType
 from .scroll_retriever import ScrollRetriever, EmailSnippet
+from .profile_manager import ProfileManager
 from ..utils.text_utils import TextProcessor
-
-@dataclass
-class Profile:
-    """User profile information for email generation."""
-    name: str = ""
-    title: str = ""
-    company: str = ""
 
 class PromptBuilder:
     """
     Handles prompt construction for email generation, using full conversation history from ChatHistoryManager.
     Now includes RAG functionality for retrieving relevant email templates.
     """
-    def __init__(self, llm_service: LLMService, chat_history_manager: ChatHistoryManager, profile: Optional[Profile] = None, config=None, scroll_retriever: Optional[ScrollRetriever] = None):
+    def __init__(self, llm_service: LLMService, chat_history_manager: ChatHistoryManager, profile_manager: Optional[ProfileManager] = None, config=None, scroll_retriever: Optional[ScrollRetriever] = None):
         self.llm_service = llm_service
         self.chat_history_manager = chat_history_manager
-        self.profile = profile or Profile()
+        self.profile_manager = profile_manager or ProfileManager()
         self.config = config
         self.scroll_retriever = scroll_retriever
         self.draft_email = None
@@ -184,15 +178,21 @@ Tone: {snippet.tone}
         
         if guidance_parts:
             rag_context += """
-**CRITICAL WRITING GUIDANCE - MUST FOLLOW**
-Based on the selected template, you MUST follow these writing guidelines:
+**🚫 CRITICAL WRITING GUIDANCE - MANDATORY RULES - ZERO TOLERANCE**
+Based on the selected template, you MUST follow these writing guidelines EXACTLY:
 
 """
             rag_context += "\n\n".join(guidance_parts)
             
             rag_context += """
 
-⚠️  REMINDER: You MUST follow the above guidance. Do not use any phrases listed in "Avoid these phrases" and prefer the phrases listed in "Use these phrases instead".
+⚠️  **FINAL WARNING - THIS IS NOT A SUGGESTION:**
+• You MUST follow the above guidance EXACTLY - no exceptions
+• If you use ANY forbidden phrase, the email will be rejected
+• You SHOULD TRY to use the suggested phrases when appropriate
+• This is a zero-tolerance policy - no excuses
+• Before writing, memorize the forbidden phrases list
+• Check every sentence against the forbidden list before submitting
 """
         
         rag_context += """
@@ -204,17 +204,37 @@ Now, write a completely original email for the user's specific situation, using 
         return rag_context
     
     def _format_guidance(self, guidance: Dict[str, Any]) -> str:
-        """Format guidance for LLM consumption."""
+        """Format guidance for LLM consumption with strict enforcement."""
         formatted = []
         
         if 'avoid_phrases' in guidance and guidance['avoid_phrases']:
-            formatted.append(f"Avoid these phrases: {', '.join(guidance['avoid_phrases'])}")
+            formatted.append("🚫 **FORBIDDEN PHRASES - DO NOT USE ANY OF THESE UNDER ANY CIRCUMSTANCES:**")
+            for phrase in guidance['avoid_phrases']:
+                formatted.append(f"   • \"{phrase}\"")
+            formatted.append("")
         
         if 'preferred_phrases' in guidance and guidance['preferred_phrases']:
-            formatted.append(f"Use these phrases instead: {', '.join(guidance['preferred_phrases'])}")
+            formatted.append("✅ **PREFERRED PHRASES - TRY TO USE THESE WHEN APPROPRIATE:**")
+            for phrase in guidance['preferred_phrases']:
+                formatted.append(f"   • \"{phrase}\"")
+            formatted.append("")
         
         if 'writing_tips' in guidance and guidance['writing_tips']:
-            formatted.append(f"Writing tips: {'; '.join(guidance['writing_tips'])}")
+            formatted.append("💡 **WRITING RULES - MUST FOLLOW:**")
+            for tip in guidance['writing_tips']:
+                formatted.append(f"   • {tip}")
+            formatted.append("")
+        
+        # Add strict enforcement reminder
+        formatted.append("""
+⚠️  **CRITICAL ENFORCEMENT RULES:**
+• These are NOT suggestions - they are MANDATORY rules
+• If you use ANY forbidden phrase, the email will be rejected
+• You MUST use the preferred phrases when appropriate
+• Before submitting, check every sentence against the forbidden list
+• If unsure, choose the simpler, more direct option
+• This is a zero-tolerance policy - no exceptions
+""")
         
         return "\n".join(formatted)
 
@@ -222,15 +242,8 @@ Now, write a completely original email for the user's specific situation, using 
         # Get conversation context
         conversation_context = self._build_full_conversation_context()
 
-        # Profile info
-        profile_lines = []
-        if self.profile.name:
-            profile_lines.append(f"Name: {self.profile.name}")
-        if self.profile.title:
-            profile_lines.append(f"Title: {self.profile.title}")
-        if self.profile.company:
-            profile_lines.append(f"Company: {self.profile.company}")
-        profile_text = "\n".join(profile_lines)
+        # Get profile context from ProfileManager
+        profile_text = self.profile_manager.get_profile_context(include_sensitive=True)
 
         # Tone and language
         tone = getattr(self.config, 'default_tone', 'natural') if self.config else 'natural'
@@ -258,15 +271,35 @@ Settings:
 
 {rag_context}
 
-Instructions:
-- If you have enough information, generate a draft outreach email for the user's goal.
-- If you need more details, ask the user for what you need.
-- Be natural and avoid sounding AI-written if 'natural' tone is selected.
-- Use the reference templates above ONLY for style and structure guidance.
-- Write a completely original email tailored to the user's specific situation.
-- If this is feedback on a previous draft, incorporate the user's feedback while maintaining the core message.
-- CRITICAL: If writing guidance is provided above, you MUST follow it exactly. Do not use any phrases listed in "Avoid these phrases" and prefer the phrases listed in "Use these phrases instead".
-- Before writing, carefully review any provided writing guidance and ensure your email follows it completely.
+**CRITICAL INSTRUCTIONS - READ CAREFULLY:**
+1. If you have enough information, generate a draft outreach email for the user's goal.
+2. If you need more details, ask the user for what you need.
+3. Be natural and avoid sounding AI-written if 'natural' tone is selected.
+4. Use the reference templates above ONLY for style and structure guidance.
+5. Write a completely original email tailored to the user's specific situation.
+6. If this is feedback on a previous draft, incorporate the user's feedback while maintaining the core message.
+
+**MANDATORY WRITING GUIDANCE ENFORCEMENT:**
+⚠️  **BEFORE WRITING YOUR EMAIL, YOU MUST:**
+- Read and memorize ALL forbidden phrases listed above
+- Read and memorize ALL required phrases listed above
+- Check every sentence you write against the forbidden phrases list
+- If you find ANY forbidden phrase in your draft, rewrite that sentence
+- Use the required phrases whenever appropriate
+- Follow ALL writing rules exactly as stated
+
+⚠️  **ZERO TOLERANCE POLICY:**
+- Using ANY forbidden phrase will result in email rejection
+- You MUST follow the writing guidance exactly - no exceptions
+- If unsure about a phrase, choose the simpler, more direct option
+- This is not a suggestion - it's a mandatory requirement
+
+**FINAL CHECK:**
+Before submitting your email, review every sentence and ensure:
+- No forbidden phrases are used
+- Required phrases are used when appropriate
+- All writing rules are followed
+- The email sounds natural and direct
 """
         return prompt
 
@@ -321,10 +354,8 @@ Instructions:
 
     def update_profile(self, **kwargs):
         """Update the user profile with new information."""
-        for key, value in kwargs.items():
-            if hasattr(self.profile, key):
-                setattr(self.profile, key, value)
-        log(f"Profile updated: {kwargs}", prefix="PromptBuilder")
+        self.profile_manager.update_profile(**kwargs)
+        log(f"Profile updated via ProfileManager: {kwargs}", prefix="PromptBuilder")
 
     def get_last_retrieved_snippets(self) -> List[Tuple[EmailSnippet, float]]:
         """Get the last retrieved snippets for debugging or UI display."""

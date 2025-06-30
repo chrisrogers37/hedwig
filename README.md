@@ -104,6 +104,7 @@ hedwig/
 │   │   ├── chat_history_manager.py # Conversation state and history management
 │   │   ├── config_service.py       # Configuration and environment management
 │   │   ├── llm_service.py          # Language model interface (OpenAI, etc.)
+│   │   ├── profile_manager.py      # User profile management and session state
 │   │   ├── prompt_builder.py       # Prompt construction with RAG context
 │   │   ├── scroll_retriever.py     # YAML template retrieval and embedding
 │   │   └── simple_embeddings.py    # Lightweight semantic embeddings
