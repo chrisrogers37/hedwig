@@ -51,6 +51,7 @@ def initialize_services():
 
 def render_configuration_sidebar(config):
     """Render the configuration sidebar."""
+    st.sidebar.markdown("---")
     st.sidebar.title("⚙️ Configuration")
     
     # Provider selection (currently only OpenAI)
@@ -210,6 +211,7 @@ def render_email_actions(email_content):
 
 def render_conversation_stats(chat_history_manager):
     """Display conversation statistics and context."""
+    st.sidebar.markdown("---")
     if st.sidebar.checkbox("🔍 Show Conversation Stats"):
         st.sidebar.subheader("Conversation Stats")
         stats = chat_history_manager.get_conversation_stats()
@@ -230,7 +232,6 @@ def render_conversation_stats(chat_history_manager):
 
 def render_profile_management():
     """Render the profile management section in the sidebar."""
-    st.sidebar.markdown("---")
     st.sidebar.subheader("👤 Profile (Optional)")
     
     # Initialize ProfileManager in session state if not exists
@@ -290,11 +291,14 @@ def main():
     if config is None:
         st.stop()
     
-    # Render configuration sidebar
+    # Render profile management FIRST (at the top) - making it more prominent
+    profile_manager = render_profile_management()
+    
+    # Render configuration sidebar (in the middle)
     config = render_configuration_sidebar(config)
     
-    # Render profile management (this initializes ProfileManager in session state)
-    profile_manager = render_profile_management()
+    # Render conversation stats LAST (at the bottom)
+    render_conversation_stats(chat_history_manager)
     
     # Re-initialize services if config changed
     if config.validate():
@@ -332,9 +336,6 @@ def main():
             st.error(f"❌ Failed to reinitialize services: {e}")
             log(f"ERROR reinitializing services: {e}\n{traceback.format_exc()}", prefix="Hedwig")
             st.stop()
-    
-    # Render conversation stats
-    render_conversation_stats(chat_history_manager)
     
     # Render main chat interface
     render_chat_interface(chat_history_manager, prompt_builder)
