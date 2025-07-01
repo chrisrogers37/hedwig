@@ -19,8 +19,6 @@ class AppConfig:
         "PROVIDER": "openai",  # Currently only supports "openai"
         "OPENAI_API_KEY": None,
         "OPENAI_MODEL": "gpt-4",
-        "DEFAULT_TONE": "professional",
-        "DEFAULT_LANGUAGE": "English",
     }
 
     def __init__(self, config_file: Optional[str] = None, load_env: bool = True):
@@ -56,14 +54,6 @@ class AppConfig:
     @property
     def openai_model(self) -> str:
         return self._config["OPENAI_MODEL"]
-
-    @property
-    def default_tone(self) -> str:
-        return self._config["DEFAULT_TONE"]
-
-    @property
-    def default_language(self) -> str:
-        return self._config["DEFAULT_LANGUAGE"]
 
     def get_api_key(self) -> Optional[str]:
         """Get the API key for the current provider."""
