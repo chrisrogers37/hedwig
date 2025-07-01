@@ -8,8 +8,6 @@ from src.services.scroll_retriever import EmailSnippet
 @pytest.fixture
 def mock_config():
     config = MagicMock()
-    config.default_tone = "professional"
-    config.default_language = "English"
     return config
 
 @pytest.fixture
@@ -338,17 +336,6 @@ def test_deprecated_methods_return_empty(prompt_builder):
     """Test that deprecated methods return empty strings."""
     assert prompt_builder._get_previous_draft_context() == ""
     assert prompt_builder._extract_feedback_instructions("any message") == ""
-
-def test_build_llm_prompt_natural_tone(prompt_builder, mock_config):
-    """Test building prompt with natural tone."""
-    # Update config to use natural tone
-    mock_config.default_tone = "natural"
-    prompt_builder.config = mock_config
-    
-    prompt = prompt_builder.build_llm_prompt()
-    
-    assert "Tone: natural" in prompt
-    assert "Use simple language and intentionally try to not sound AI-written" in prompt
 
 def test_generate_draft(prompt_builder, chat_history_manager):
     """Test generating a draft using the full conversation context."""

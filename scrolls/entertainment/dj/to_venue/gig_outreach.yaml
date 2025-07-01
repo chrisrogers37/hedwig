@@ -11,64 +11,66 @@ metadata:
   notes: "Effective for DJs reaching out to venues for sets"
 
 template:
-  subject: "DJ Gig Inquiry"
+  subject: "{{sender_name}} - Booking Inquiry"
   content: |
-    Hi {{recipient_name}},
+    Hey,
 
-    I hope this note finds you well. I'm {{sender_name}}, a DJ that plays {{music_style}} based in {{location}}.
+    I'm {{sender_name}}, a DJ based in {{location}}. I've been to {{venue_name}} several times and really dig the vibe and crowd.
+    I'd love to play a set there sometime. My music is available at: {{website_or_soundcloud}}
 
-    I've been to {{venue_name}} several times over the last few years and I am a big fan. I love the crowd and the vibe of the venue. I have been DJing for {{experience_duration}} in {{location}} and have played at similar spots like {{similar_venues}}. I would love to discuss potentially playing at {{venue_name}}.
+    Let me know if you'd be interested in talking.
 
-    If you're interested, I'm down to talk more at your earliest convenience. Please let me know if you'd like me to share links to sets or any other details.
-
-    Looking forward to hearing from you!
-
-    Best regards,
     {{sender_name}}
     {{phone_number}}
-    {{website_or_soundcloud}}
+    {{email}}
 
 guidance:
   avoid_phrases:
     - "soaking in the great vibes"
+    - "making moves"
     - "making waves"
-    - "huge admirer"
-    - "incredible atmosphere"
-    - "keen to"
-    - "spinning"
-    - "spinning tracks"
-    - "excited about"
-    - "thrilled to"
-    - "getting people moving"
-    - "bringing the energy"
-    - "epic nights"
-    - "awesome crowds"
-    - "perfect fit for the vibes"
-    - "your regulars"
-    - "bringing my sets to your venue"
-    - "bring to your lineup"
-    - "I believe"
-    - "I think"
+    - "keen on"
+    - "bringing fresh beats"
+    - "bringing the beat"
+    - "unique atmosphere"
+    - "unforgettable experience"
+    - "adding my vibe to the mix"
+    - "complement the vibe"
+    - "cultivating"
+    - "discuss the possibility"
+    - "discussing the possibility"
+    - "following your venue"
+    - "really into the kind of space"
+    - "eager to spin"
+    - "had the pleasure of experiencing"
+    - "ambiance"
+    - "I must say"
+    - "really impressed"
+    - "attract"
+    - "opportunity"
+    - "taste of my music"
+    - "energy I bring"
+    - "portfolio"
+    - "thrilled to connect"
+    - "reaching out because"
+    - "your location"
   
   preferred_phrases:
-    - "I've been to your venue"
-    - "I like the crowd"
-    - "I want to play there"
-    - "I'm interested in"
-    - "I'd like to"
-    - "I can share my music"
-    - "Let me know if you want to talk"
-    - "Here's my contact info"
-    - "playing a set"
-    - "share some sets/mixes with you"
+    - "Hey"
+    - "I've been to [venue name]"
+    - "Dig the vibe"
+    - "Would love to play at your venue"
+    - "My music is available at"
+    - "Let me know if you'd be interested"
   
   writing_tips:
-    - "Write like a casual person in the scene, not like an outsider trying to impress with industry buzzwords"
-    - "Do not use choppy punctuation"
-    - "Use simple, direct statements instead of grandiose descriptions"
-    - "Don't try to use industry buzzwords or clichés"
-    - "Be authentic and straightforward about intent"
-    - "Do not self aggrandize your skills or experience"
-    - "Do not making presumptions like 'I think you'll like my style'"
-    - "Do not use em dashes"
-    - "Signature and contact info should be at the end of the email"
+    - "COPY THE EXACT TEMPLATE STRUCTURE - DO NOT REWRITE IT"
+    - "Use the template's subject line format exactly"
+    - "Use the template's exact sentences, just replace placeholders"
+    - "No corporate buzzwords or overly formal language"
+    - "No industry buzzwords that give off the impression of trying to impress"
+    - "Be direct and authentic"
+    - "Use simple, clear language"
+    - "Keep it under 4 sentences"
+    - "Use proper grammar and complete sentences"
+    - "DO NOT BE CREATIVE - FOLLOW THE TEMPLATE EXACTLY"

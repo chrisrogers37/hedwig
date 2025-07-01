@@ -31,21 +31,6 @@ class PromptBuilder:
         self.initial_template_cache = None
         self.conversation_started = False
 
-    def _get_tone_instructions(self, tone: str) -> str:
-        tone = tone.lower()
-        if tone == "professional":
-            return "Use clear, concise, and formal business language. Avoid slang, contractions, or overly casual expressions. Structure the email with a logical flow, maintain a respectful and courteous tone, and focus on clarity and precision. Ensure all communication is polite, objective, and appropriate for a business audience."
-        elif tone == "casual":
-            return "Use simple, easy-to-understand language. Do not pontificate or explain things in grandiose ways. Embrace brevity in email construction and try to get to the point in a way that makes the email not a burden to read. Feel free to use contractions and a relaxed, conversational style."
-        elif tone == "friendly":
-            return "Write in a warm, approachable, and personable manner. Use positive language and show genuine interest in the recipient. Feel free to include light pleasantries or well-wishes, and make the email feel inviting and supportive. Avoid being overly formal, but maintain professionalism."
-        elif tone == "formal":
-            return "Use highly structured, polite, and respectful language. Avoid contractions and colloquialisms. Address the recipient with appropriate titles and maintain a clear separation between personal and professional topics. Ensure the email is grammatically precise and follows traditional business etiquette."
-        elif tone == "natural":
-            return "Use simple language and intentionally try to not sound AI-written. Do not use exotic words or words with flair. Do not write in the overly peppy way often associated with AI. Do not use em dashes."
-        else:
-            return ""
-
     def _retrieve_relevant_snippets(self, user_context: str) -> List[Tuple[EmailSnippet, float]]:
         """
         Retrieve relevant email snippets based on user context.
@@ -146,9 +131,8 @@ The following email examples are provided for inspiration regarding tone, indust
 
 ⚠️  IMPORTANT: Do NOT copy specific details from these templates such as:
 - Company names, products, or services
-- Statistics, metrics, or performance data  
+- Statistics, metrics, or performance data
 - Recent news, events, or time-sensitive information
-- Specific pain points or challenges
 - Personal anecdotes or stories
 
 Use these examples ONLY for:
@@ -178,22 +162,11 @@ Tone: {snippet.tone}
         
         if guidance_parts:
             rag_context += """
-**🚫 CRITICAL WRITING GUIDANCE - MANDATORY RULES - ZERO TOLERANCE**
-Based on the selected template, you MUST follow these writing guidelines EXACTLY:
+**WRITING GUIDANCE:**
+Based on the selected template, follow these guidelines:
 
 """
             rag_context += "\n\n".join(guidance_parts)
-            
-            rag_context += """
-
-⚠️  **FINAL WARNING - THIS IS NOT A SUGGESTION:**
-• You MUST follow the above guidance EXACTLY - no exceptions
-• If you use ANY forbidden phrase, the email will be rejected
-• You SHOULD TRY to use the suggested phrases when appropriate
-• This is a zero-tolerance policy - no excuses
-• Before writing, memorize the forbidden phrases list
-• Check every sentence against the forbidden list before submitting
-"""
         
         rag_context += """
 **END REFERENCE TEMPLATES**
@@ -204,37 +177,26 @@ Now, write a completely original email for the user's specific situation, using 
         return rag_context
     
     def _format_guidance(self, guidance: Dict[str, Any]) -> str:
-        """Format guidance for LLM consumption with strict enforcement."""
+        """Format guidance for LLM consumption."""
         formatted = []
         
         if 'avoid_phrases' in guidance and guidance['avoid_phrases']:
-            formatted.append("🚫 **FORBIDDEN PHRASES - DO NOT USE ANY OF THESE UNDER ANY CIRCUMSTANCES:**")
+            formatted.append("🚫 **AVOID THESE PHRASES:**")
             for phrase in guidance['avoid_phrases']:
                 formatted.append(f"   • \"{phrase}\"")
             formatted.append("")
         
         if 'preferred_phrases' in guidance and guidance['preferred_phrases']:
-            formatted.append("✅ **PREFERRED PHRASES - TRY TO USE THESE WHEN APPROPRIATE:**")
+            formatted.append("✅ **PREFERRED PHRASES:**")
             for phrase in guidance['preferred_phrases']:
                 formatted.append(f"   • \"{phrase}\"")
             formatted.append("")
         
         if 'writing_tips' in guidance and guidance['writing_tips']:
-            formatted.append("💡 **WRITING RULES - MUST FOLLOW:**")
+            formatted.append("💡 **WRITING TIPS:**")
             for tip in guidance['writing_tips']:
                 formatted.append(f"   • {tip}")
             formatted.append("")
-        
-        # Add strict enforcement reminder
-        formatted.append("""
-⚠️  **CRITICAL ENFORCEMENT RULES:**
-• These are NOT suggestions - they are MANDATORY rules
-• If you use ANY forbidden phrase, the email will be rejected
-• You MUST use the preferred phrases when appropriate
-• Before submitting, check every sentence against the forbidden list
-• If unsure, choose the simpler, more direct option
-• This is a zero-tolerance policy - no exceptions
-""")
         
         return "\n".join(formatted)
 
@@ -245,11 +207,6 @@ Now, write a completely original email for the user's specific situation, using 
         # Get profile context from ProfileManager
         profile_text = self.profile_manager.get_profile_context(include_sensitive=True)
 
-        # Tone and language
-        tone = getattr(self.config, 'default_tone', 'natural') if self.config else 'natural'
-        language = getattr(self.config, 'default_language', 'English') if self.config else 'English'
-        tone_instructions = self._get_tone_instructions(tone)
-
         # Retrieve relevant snippets for RAG
         latest_user_message = self._get_latest_user_message()
         snippets = self._retrieve_relevant_snippets(latest_user_message)
@@ -259,47 +216,21 @@ Now, write a completely original email for the user's specific situation, using 
         prompt = f"""
 You are an expert assistant for writing outreach emails for any use case.
 
+You have been speaking to the user, the conversation history is immediately below.
+
 {conversation_context}
 
 User profile (if provided):
 {profile_text if profile_text else '[No profile info provided]'}
 
-Settings:
-- Tone: {tone}
-{tone_instructions}
-- Language: {language}
-
+Based on your experience and the user's need, you know that the following context is relevant to the user's request:
 {rag_context}
 
-**CRITICAL INSTRUCTIONS - READ CAREFULLY:**
-1. If you have enough information, generate a draft outreach email for the user's goal.
-2. If you need more details, ask the user for what you need.
-3. Be natural and avoid sounding AI-written if 'natural' tone is selected.
-4. Use the reference templates above ONLY for style and structure guidance.
-5. Write a completely original email tailored to the user's specific situation.
-6. If this is feedback on a previous draft, incorporate the user's feedback while maintaining the core message.
-
-**MANDATORY WRITING GUIDANCE ENFORCEMENT:**
-⚠️  **BEFORE WRITING YOUR EMAIL, YOU MUST:**
-- Read and memorize ALL forbidden phrases listed above
-- Read and memorize ALL required phrases listed above
-- Check every sentence you write against the forbidden phrases list
-- If you find ANY forbidden phrase in your draft, rewrite that sentence
-- Use the required phrases whenever appropriate
-- Follow ALL writing rules exactly as stated
-
-⚠️  **ZERO TOLERANCE POLICY:**
-- Using ANY forbidden phrase will result in email rejection
-- You MUST follow the writing guidance exactly - no exceptions
-- If unsure about a phrase, choose the simpler, more direct option
-- This is not a suggestion - it's a mandatory requirement
-
-**FINAL CHECK:**
-Before submitting your email, review every sentence and ensure:
-- No forbidden phrases are used
-- Required phrases are used when appropriate
-- All writing rules are followed
-- The email sounds natural and direct
+**INSTRUCTIONS:**
+1. Generate a draft outreach email for the user's goal.
+2. Replace all template placeholders with appropriate values.
+3. If you need more details, ask the user for what you need.
+5. If this is feedback on a previous draft, incorporate the user's feedback based on the last message in the conversation history.
 """
         return prompt
 

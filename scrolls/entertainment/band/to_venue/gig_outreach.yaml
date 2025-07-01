@@ -1,5 +1,5 @@
 metadata:
-  tags: ["cold", "entertainment", "band", "gig", "music", "casual", "B2B"]
+  tags: ["cold", "entertainment", "band", "gig", "music", "casual", "B2B", "venue", "live music", "booking"]
   use_case: "Gig Outreach"
   tone: "Casual"
   industry: "Entertainment"
@@ -11,33 +11,52 @@ metadata:
   notes: "Effective for bands reaching out to venues for live gigs"
 
 template:
-  subject: "Band Gig Inquiry"
+  subject: "{{sender_name}} - Booking Inquiry"
   content: |
-    Hi {{recipient_name}},
+    Hey,
 
-    I'm {{sender_name}}, and I play with {{band_name}}, an {{genre}} band based in {{location}}.
+    I'm {{sender_name}}, a {{genre}} band based in {{location}}. I've been to {{venue_name}} several times and really dig the vibe and crowd.
+    We'd love to play a set there sometime. Our music is available at: {{website_or_epk}}
 
-    We've been following the shows at {{venue_name}} and love the energy your venue brings to the local music scene. Our recent gigs at {{other_venues}} have been a blast, and we've built a solid following in the area.
+    Let me know if you'd be interested in talking.
 
-    We'd love to bring our live set to {{venue_name}} and help make your next gig night a success. We can provide all our own gear and promote the show to our fans.
-
-    Would you be open to chatting about booking us for an upcoming date? I can send over our EPK and some live recordings if you're interested.
-
-    Thanks for your time, and hope to hear from you soon!
-
-    Best,
     {{sender_name}}
     {{band_name}}
     {{phone_number}}
-    {{website_or_epk}}
+    {{email}}
 
 guidance:
   avoid_phrases:
     - "soaking in the great vibes"
+    - "making moves"
     - "making waves"
+    - "keen on"
+    - "bringing fresh beats"
+    - "bringing the beat"
+    - "unique atmosphere"
+    - "unforgettable experience"
+    - "adding my vibe to the mix"
+    - "complement the vibe"
+    - "cultivating"
+    - "discuss the possibility"
+    - "discussing the possibility"
+    - "following your venue"
+    - "really into the kind of space"
+    - "eager to spin"
+    - "had the pleasure of experiencing"
+    - "ambiance"
+    - "I must say"
+    - "really impressed"
+    - "attract"
+    - "opportunity"
+    - "taste of my music"
+    - "energy I bring"
+    - "portfolio"
+    - "thrilled to connect"
+    - "reaching out because"
+    - "your location"
     - "huge admirer"
     - "incredible atmosphere"
-    - "keen to"
     - "excited about"
     - "thrilled to"
     - "getting people moving"
@@ -45,19 +64,29 @@ guidance:
     - "epic nights"
     - "awesome crowds"
     - "perfect fit for the vibes"
+    - "love the energy your venue brings"
+    - "help make your next gig night a success"
+    - "Would you be open to chatting"
+    - "Thanks for your time"
+    - "hope to hear from you soon"
+    - "Best"
   
   preferred_phrases:
-    - "I've been to your venue"
-    - "I like the crowd"
-    - "I want to play there"
-    - "I'm interested in"
-    - "I'd like to"
-    - "I can share my music"
-    - "Let me know if you want to talk"
-    - "Here's my contact info"
+    - "Hey"
+    - "I've been to [venue name]"
+    - "Dig the vibe"
+    - "Would love to play at your venue"
+    - "Our music is available at"
+    - "Let me know if you'd be interested"
   
   writing_tips:
-    - "Write like a real person in the scene, not like someone trying to impress"
-    - "Use simple, direct statements instead of flowery descriptions"
-    - "Don't use industry buzzwords or clichés"
-    - "Be authentic and straightforward about what you want" 
+    - "COPY THE EXACT TEMPLATE STRUCTURE - DO NOT REWRITE IT"
+    - "Use the template's subject line format exactly"
+    - "Use the template's exact sentences, just replace placeholders"
+    - "No corporate buzzwords or overly formal language"
+    - "No industry buzzwords that give off the impression of trying to impress"
+    - "Be direct and authentic"
+    - "Use simple, clear language"
+    - "Keep it under 4 sentences"
+    - "Use proper grammar and complete sentences"
+    - "DO NOT BE CREATIVE - FOLLOW THE TEMPLATE EXACTLY" 

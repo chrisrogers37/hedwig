@@ -19,8 +19,6 @@ def test_defaults():
         config = AppConfig(load_env=False)
         assert config.provider == "openai"
         assert config.openai_model == "gpt-4"
-        assert config.default_tone == "professional"
-        assert config.default_language == "English"
         assert config.openai_api_key is None
         assert config.get_api_key() is None
         assert config.get_model() == "gpt-4"
@@ -44,9 +42,7 @@ def test_file_loading():
     data = {
         "PROVIDER": "openai",
         "OPENAI_API_KEY": "file-key",
-        "OPENAI_MODEL": "gpt-4",
-        "DEFAULT_TONE": "casual",
-        "DEFAULT_LANGUAGE": "Spanish"
+        "OPENAI_MODEL": "gpt-4"
     }
     with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmp:
         json.dump(data, tmp)
@@ -54,8 +50,6 @@ def test_file_loading():
         config = AppConfig(config_file=tmp.name, load_env=False)
         assert config.provider == "openai"
         assert config.openai_api_key == "file-key"
-        assert config.default_tone == "casual"
-        assert config.default_language == "Spanish"
         assert config.get_api_key() == "file-key"
         assert config.get_model() == "gpt-4"
     os.remove(tmp.name)

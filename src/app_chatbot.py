@@ -88,22 +88,8 @@ def render_configuration_sidebar(config):
         config.set("OPENAI_MODEL", model)
         log(f"Model updated: {model}")
     
-    # Tone and language settings
+    # Email settings
     st.sidebar.subheader("Email Settings")
-    tone = st.sidebar.selectbox(
-        "Default Tone",
-        ["natural", "professional", "casual", "friendly", "formal"],
-        help="Default tone for generated emails"
-    )
-    language = st.sidebar.selectbox(
-        "Language",
-        ["English", "Spanish", "French", "German"],
-        help="Language for generated emails"
-    )
-    
-    # Update configuration
-    config.set("DEFAULT_TONE", tone)
-    config.set("DEFAULT_LANGUAGE", language)
     
     return config
 
