@@ -15,7 +15,8 @@ sys.path.append(project_root)
 
 from src.services.config_service import AppConfig
 from src.services.llm_service import LLMService
-from src.services.prompt_builder import PromptBuilder, Profile
+from src.services.prompt_builder import PromptBuilder
+from src.services.profile_manager import Profile
 from src.services.chat_history_manager import ChatHistoryManager
 from unittest.mock import Mock, patch
 

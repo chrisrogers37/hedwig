@@ -14,6 +14,7 @@ from src.services.prompt_builder import PromptBuilder
 from src.services.chat_history_manager import ChatHistoryManager, MessageType
 from src.services.scroll_retriever import ScrollRetriever
 from src.services.profile_manager import ProfileManager
+from src.services.review_agent.review_agent import ReviewAgent
 from src.utils.logging_utils import log
 import pyperclip
 
@@ -36,18 +37,19 @@ def initialize_services():
     if not config.validate():
         st.error("⚠️ OpenAI API key is required. Please set it in the sidebar.")
         log("ERROR: OpenAI API key is missing or invalid.")
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     try:
         llm_service = LLMService(config)
         chat_history_manager = ChatHistoryManager()
         chat_history_manager.start_conversation()
         scroll_retriever = ScrollRetriever()
         prompt_builder = PromptBuilder(llm_service, chat_history_manager, scroll_retriever=scroll_retriever)
-        return config, llm_service, chat_history_manager, prompt_builder, scroll_retriever
+        review_agent = ReviewAgent(llm_service)
+        return config, llm_service, chat_history_manager, prompt_builder, scroll_retriever, review_agent
     except Exception as e:
         st.error(f"❌ Failed to initialize services: {e}")
         log(f"ERROR initializing services: {e}\n{traceback.format_exc()}")
-        return None, None, None, None, None
+        return None, None, None, None, None, None
 
 def render_configuration_sidebar(config):
     """Render the configuration sidebar."""
@@ -93,7 +95,7 @@ def render_configuration_sidebar(config):
     
     return config
 
-def render_chat_interface(chat_history_manager, prompt_builder):
+def render_chat_interface(chat_history_manager, prompt_builder, review_agent):
     """Render the main chat interface."""
     st.title("Hedwig: Generate Outreach Emails For Any Use Case")
     st.markdown("Chat with me to create personalized outreach emails! Just describe your goal and I'll generate a draft.")
@@ -101,6 +103,7 @@ def render_chat_interface(chat_history_manager, prompt_builder):
     # Get services from session state (they should already be there from main())
     chat_history_manager = st.session_state.get('chat_history_manager', chat_history_manager)
     prompt_builder = st.session_state.get('prompt_builder', prompt_builder)
+    review_agent = st.session_state.get('review_agent', review_agent)
 
     # Add a default assistant message at initialization if history is empty
     if not chat_history_manager.messages:
@@ -110,58 +113,100 @@ def render_chat_interface(chat_history_manager, prompt_builder):
         )
         chat_history_manager.add_draft(default_msg)
 
-    # Display chat messages from ChatHistoryManager
-    messages = chat_history_manager.get_recent_messages(count=50)  # Show last 50 messages
-    for message in messages:
-        if message.type.value in ['draft', 'revised_draft']:
-            st.chat_message("assistant").write(message.content)
-        elif message.type.value == 'feedback':
-            st.chat_message("user").write(message.content)
-        elif message.type.value == 'initial_prompt':
-            st.chat_message("user").write(message.content)
+    # Create two columns: main chat and feedback sidebar
+    chat_col, feedback_col = st.columns([3, 1])
+    
+    with chat_col:
+        # Display chat messages from ChatHistoryManager
+        messages = chat_history_manager.get_recent_messages(count=50)  # Show last 50 messages
+        for message in messages:
+            if message.type.value in ['draft', 'revised_draft']:
+                st.chat_message("assistant").write(message.content)
+            elif message.type.value == 'feedback':
+                st.chat_message("user").write(message.content)
+            elif message.type.value == 'initial_prompt':
+                st.chat_message("user").write(message.content)
 
-    regenerate = st.session_state.get('regenerate', False)
-    user_input = st.chat_input("Describe your outreach goal or give feedback on the draft...")
+        # Regenerate or new user input triggers LLM call
+        regenerate = st.session_state.get('regenerate', False)
+        if regenerate:
+            try:
+                prompt = prompt_builder.build_llm_prompt()
+                draft = prompt_builder.llm_service.generate_response(prompt, max_tokens=1500)
+                if draft:
+                    chat_history_manager.add_draft(draft)
+                    st.chat_message('assistant').write(draft)
+                    # Clear feedback loading flag since we have a new draft
+                    st.session_state['feedback_loading'] = False
+                    try:
+                        review_result = review_agent.review_email(draft)
+                        st.session_state['current_feedback'] = review_result
+                    except Exception as e:
+                        log(f"ERROR generating feedback: {e}", prefix="Hedwig")
+                        st.session_state['current_feedback'] = None
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("📋 Copy to Clipboard", key="copy_btn"):
+                            try:
+                                pyperclip.copy(draft)
+                                st.success("✅ Email copied to clipboard!")
+                            except Exception as e:
+                                st.error(f"❌ Failed to copy: {e}")
+                                log(f"ERROR copying to clipboard: {e}", prefix="Hedwig")
+                    with col2:
+                        if st.button("🔄 Regenerate", key="regenerate_btn"):
+                            st.session_state['regenerate'] = True
+                            st.rerun()
+                else:
+                    st.chat_message('assistant').write("I'm not sure how to respond. Please try again.")
+                    # Clear feedback loading flag on error
+                    st.session_state['feedback_loading'] = False
+            except Exception as e:
+                st.error(f"❌ Error generating draft: {e}")
+                log(f"ERROR generating draft: {e}", prefix="Hedwig")
+                # Clear feedback loading flag on error
+                st.session_state['feedback_loading'] = False
+            st.session_state['regenerate'] = False
+            st.rerun()
 
-    # Only add a new message if user_input is present
-    if user_input:
-        log(f"User message: {user_input}", prefix="Hedwig")
-        
-        # Add user message to chat history (no classification needed)
-        chat_history_manager.add_message(user_input, MessageType.INITIAL_PROMPT)
-        with st.chat_message("user"):
-            st.markdown(user_input)
-        st.session_state['regenerate'] = False  # Not a regeneration, it's a new message
-        regenerate = False
+        # Always render the chat input bar at the very bottom, after all messages and LLM responses
+        user_input = st.chat_input("Describe your outreach goal or give feedback on the draft...")
+        if user_input:
+            log(f"User message: {user_input}", prefix="Hedwig")
+            chat_history_manager.add_message(user_input, MessageType.INITIAL_PROMPT)
+            st.session_state['regenerate'] = True  # Set flag to trigger LLM on next run
+            st.rerun()
 
-    # Regenerate or new user input triggers LLM call
-    if regenerate or user_input:
-        try:
-            # Always build the prompt after the user message is added to history
-            prompt = prompt_builder.build_llm_prompt()
-            draft = prompt_builder.llm_service.generate_response(prompt, max_tokens=1500)
-            if draft:
-                chat_history_manager.add_draft(draft)  # Persist assistant reply
-                st.chat_message('assistant').write(draft)
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("📋 Copy to Clipboard", key="copy_btn"):
-                        try:
-                            pyperclip.copy(draft)
-                            st.success("✅ Email copied to clipboard!")
-                        except Exception as e:
-                            st.error(f"❌ Failed to copy: {e}")
-                            log(f"ERROR copying to clipboard: {e}", prefix="Hedwig")
-                with col2:
-                    if st.button("🔄 Regenerate", key="regenerate_btn"):
-                        st.session_state['regenerate'] = True
-                        st.rerun()
-            else:
-                st.chat_message('assistant').write("I'm not sure how to respond. Please try again.")
-        except Exception as e:
-            st.error(f"❌ Error generating draft: {e}")
-            log(f"ERROR generating draft: {e}", prefix="Hedwig")
-        st.session_state['regenerate'] = False
+    # Right sidebar for feedback items
+    with feedback_col:
+        st.subheader("💡 Feedback & Suggestions")
+        current_feedback = st.session_state.get('current_feedback')
+        feedback_loading = st.session_state.get('feedback_loading', False)
+        # If waiting for new feedback, show loading
+        if feedback_loading:
+            st.info("Generating new feedback suggestions...")
+        elif current_feedback and current_feedback.actionable_feedback:
+            st.write("**Click any suggestion to improve your email:**")
+            for i, feedback_item in enumerate(current_feedback.actionable_feedback):
+                button_key = f"feedback_{feedback_item.id}_{i}"
+                if st.button(
+                    feedback_item.text,
+                    key=button_key,
+                    help=f"Click to apply: {feedback_item.text}"
+                ):
+                    # Add feedback as user message and trigger LLM, clear sidebar
+                    log(f"Feedback clicked: {feedback_item.text}", prefix="Hedwig")
+                    chat_history_manager.add_message(feedback_item.text, MessageType.INITIAL_PROMPT)
+                    st.session_state['feedback_loading'] = True
+                    st.session_state['current_feedback'] = None
+                    st.session_state['regenerate'] = True  # Set flag to trigger LLM on next run
+                    st.rerun()  # Rerun to show feedback as user message and trigger LLM
+        else:
+            st.info("Generate an email to see feedback suggestions!")
+        # Show critique if available
+        if current_feedback and current_feedback.critique:
+            with st.expander("📝 Detailed Analysis"):
+                st.write(current_feedback.critique)
 
 def render_email_actions(email_content):
     """Render actions for the generated email."""
@@ -272,7 +317,7 @@ def render_profile_management():
 def main():
     """Main application function."""
     # Initialize services
-    config, llm_service, chat_history_manager, prompt_builder, scroll_retriever = initialize_services()
+    config, llm_service, chat_history_manager, prompt_builder, scroll_retriever, review_agent = initialize_services()
     
     if config is None:
         st.stop()
@@ -317,6 +362,14 @@ def main():
                 # Reset cache if this is a new conversation (no messages)
                 if not chat_history_manager.messages:
                     prompt_builder.reset_conversation_cache()
+            
+            if "review_agent" not in st.session_state:
+                review_agent = ReviewAgent(llm_service)
+                st.session_state['review_agent'] = review_agent
+            else:
+                review_agent = st.session_state['review_agent']
+                # Update the LLM service in case it changed
+                review_agent.llm_service = llm_service
                 
         except Exception as e:
             st.error(f"❌ Failed to reinitialize services: {e}")
@@ -324,7 +377,7 @@ def main():
             st.stop()
     
     # Render main chat interface
-    render_chat_interface(chat_history_manager, prompt_builder)
+    render_chat_interface(chat_history_manager, prompt_builder, review_agent)
 
 if __name__ == "__main__":
     main() 
