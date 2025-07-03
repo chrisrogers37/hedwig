@@ -41,7 +41,7 @@ def test_initialize_services_with_valid_config():
                         mock_scroll_class.return_value = mock_scroll
                         
                         import app_chatbot
-                        config, llm_service, chat_history_manager, prompt_builder, scroll_retriever = app_chatbot.initialize_services()
+                        config, llm_service, chat_history_manager, prompt_builder, scroll_retriever, review_agent = app_chatbot.initialize_services()
                         
                         assert config is not None
                         assert llm_service is not None
@@ -60,7 +60,7 @@ def test_initialize_services_with_invalid_config():
         mock_config_class.return_value = mock_config
         
         import app_chatbot
-        config, llm_service, chat_history_manager, prompt_builder, scroll_retriever = app_chatbot.initialize_services()
+        config, llm_service, chat_history_manager, prompt_builder, scroll_retriever, review_agent = app_chatbot.initialize_services()
         
         assert config is None
         assert llm_service is None

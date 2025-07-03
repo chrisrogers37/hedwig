@@ -223,12 +223,12 @@ You have been speaking to the user, the conversation history is immediately belo
 User profile (if provided):
 {profile_text if profile_text else '[No profile info provided]'}
 
-Based on your experience and the user's need, you know that the following context is relevant to the user's request:
+{"Based on your experience and the user's need, you know that the following context is relevant to the user's request, and should use it to guide your response:" if rag_context else ""}
 {rag_context}
 
 **INSTRUCTIONS:**
 1. Generate a draft outreach email for the user's goal.
-2. Replace all template placeholders with appropriate values.
+2. If a template was retrieved, replace all template placeholders with appropriate values.
 3. If you need more details, ask the user for what you need.
 5. If this is feedback on a previous draft, incorporate the user's feedback based on the last message in the conversation history.
 """
